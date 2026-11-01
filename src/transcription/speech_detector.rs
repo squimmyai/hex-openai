@@ -9,6 +9,7 @@ use std::sync::atomic::AtomicBool;
 #[cfg(not(test))]
 use std::sync::atomic::Ordering;
 use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use color_eyre::eyre::Result;
 use transcribe_cpp::{Backend, Model, ModelOptions, VadOptions, VadSession};
@@ -38,6 +39,12 @@ static STATE: Mutex<State> = Mutex::new(State::Unloaded);
 static DOWNLOAD_STARTED: AtomicBool = AtomicBool::new(false);
 #[cfg_attr(test, allow(dead_code))]
 static RUN_FAILURE_LOGGED: AtomicBool = AtomicBool::new(false);
+/// When the last download failed. A network that blocks Hugging Face fails
+/// every try, so the next waits [`RETRY_AFTER`] instead of starting with
+/// each dictation.
+#[cfg_attr(test, allow(dead_code))]
+static DOWNLOAD_FAILED_AT: Mutex<Option<Instant>> = Mutex::new(None);
+const RETRY_AFTER: Duration = Duration::from_secs(30 * 60);
 
 /// Whether 16 kHz mono `samples` contain speech, or `None` when the detector
 /// is not available and the caller should keep its current behavior.
@@ -115,7 +122,10 @@ pub(crate) fn start_download() {
 
 #[cfg(not(test))]
 fn start_download_once() {
-    if DOWNLOAD_STARTED.swap(true, Ordering::Relaxed) {
+    let failed_at = *DOWNLOAD_FAILED_AT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if !retry_due(failed_at, Instant::now()) || DOWNLOAD_STARTED.swap(true, Ordering::Relaxed) {
         return;
     }
     let _ = std::thread::Builder::new()
@@ -124,11 +134,24 @@ fn start_download_once() {
             if let Err(error) =
                 transcription_models::download_speech_detector(&AtomicBool::new(false))
             {
-                tracing::warn!(%error, "could not download the speech detector");
-                // The next dictation or meeting chunk tries again.
+                // Dictation goes on without it; only the log says so.
+                tracing::warn!(
+                    %error,
+                    retry_minutes = RETRY_AFTER.as_secs() / 60,
+                    "could not download the speech detector"
+                );
+                *DOWNLOAD_FAILED_AT
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner()) = Some(Instant::now());
                 DOWNLOAD_STARTED.store(false, Ordering::Relaxed);
             }
         });
+}
+
+/// Whether a download may start: never failed, or failed [`RETRY_AFTER`] ago.
+#[cfg_attr(test, allow(dead_code))]
+fn retry_due(failed_at: Option<Instant>, now: Instant) -> bool {
+    failed_at.is_none_or(|at| now.duration_since(at) >= RETRY_AFTER)
 }
 
 /// Loads the detector on the CPU: it loads in tens of milliseconds there,
@@ -188,6 +211,14 @@ impl Drop for OverrideGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_failed_download_waits_before_trying_again() {
+        let now = Instant::now();
+        assert!(retry_due(None, now));
+        assert!(!retry_due(Some(now), now + Duration::from_secs(60)));
+        assert!(retry_due(Some(now), now + RETRY_AFTER));
+    }
 
     #[test]
     fn override_decides_and_restores() {
