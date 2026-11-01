@@ -14,8 +14,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::transcription::models::{TranscriptionModelId, TranscriptionSelection};
 
+mod migrations;
 mod persistence;
 mod shortcut_repair;
+
+use migrations::*;
 
 static RECORDING_DUCK_VOLUME: AtomicU32 = AtomicU32::new(0.2_f32.to_bits());
 static RECORDING_AUDIO_BEHAVIOR: AtomicU8 = AtomicU8::new(0);
@@ -1891,42 +1894,6 @@ pub struct AppSettings {
     pub text_replacements: Vec<TextReplacement>,
 }
 
-/// Moves English dictation to the streaming English model once.
-const STREAMING_ENGLISH_MIGRATION: &str = "streaming-english-model";
-/// Annotate became a default feature: on for everyone once.
-#[cfg(hex_capture)]
-const ANNOTATE_DEFAULT_MIGRATION: &str = "annotate-on-by-default";
-/// Settings saved by an `anomaly.hex` build. Up to 2.3.1 Hex was
-/// `com.kitlangton.hex2` and used the same folder, so a file without this
-/// ID may carry onboarding finished under grants macOS no longer gives the
-/// new identity; the macOS launch checks setup once
-/// (`onboarding::recheck_after_identity_change`).
-const ANOMALY_IDENTITY_MIGRATION: &str = "anomaly-hex-identity";
-#[cfg(hex_capture)]
-const MIGRATIONS: &[&str] = &[
-    STREAMING_ENGLISH_MIGRATION,
-    ANNOTATE_DEFAULT_MIGRATION,
-    ANOMALY_IDENTITY_MIGRATION,
-    MEETING_RETENTION_DEFAULT_MIGRATION,
-];
-#[cfg(not(hex_capture))]
-const MIGRATIONS: &[&str] = &[
-    STREAMING_ENGLISH_MIGRATION,
-    ANOMALY_IDENTITY_MIGRATION,
-    MEETING_RETENTION_DEFAULT_MIGRATION,
-];
-/// Scrawl's settings were read into `capture` once. Left out of
-/// `MIGRATIONS` so new settings import them too.
-#[cfg(hex_capture)]
-const SCRAWL_IMPORT_MIGRATION: &str = "scrawl-capture-settings";
-/// Scrawl's router settings were read into `capture.routing` once: its own
-/// migration, as it came after the first import.
-#[cfg(hex_capture)]
-const SCRAWL_ROUTING_IMPORT_MIGRATION: &str = "scrawl-routing-settings";
-/// Meeting retention first saved `forever` as its default; that default is
-/// now unchosen (24 hours for new meetings, older ones kept).
-const MEETING_RETENTION_DEFAULT_MIGRATION: &str = "meeting-retention-default";
-
 fn deserialize_retired_value<'de, D>(
     deserializer: D,
 ) -> std::result::Result<Option<serde_json::Value>, D::Error>
@@ -2398,103 +2365,6 @@ impl AppSettings {
             }
         }
         self.text_replacements.clear();
-    }
-
-    /// Applies each one-time change this file has not seen, then records it
-    /// so a later choice, such as switching back, sticks.
-    fn apply_one_time_migrations(&mut self) {
-        self.apply_one_time_migrations_with(|model| {
-            crate::transcription::models::is_installed(model, "en")
-        });
-    }
-
-    fn apply_one_time_migrations_with(
-        &mut self,
-        installed: impl Fn(&crate::transcription::models::ModelDefinition) -> bool,
-    ) {
-        if !self.has_migration(STREAMING_ENGLISH_MIGRATION) {
-            self.switch_english_to_streaming_model(installed);
-            self.migrations.push(STREAMING_ENGLISH_MIGRATION.into());
-        }
-        if !self.has_migration(MEETING_RETENTION_DEFAULT_MIGRATION) {
-            if self.meetings.retention == Some(MeetingRetention::Forever) {
-                self.meetings.retention = None;
-            }
-            self.migrations
-                .push(MEETING_RETENTION_DEFAULT_MIGRATION.into());
-        }
-        #[cfg(hex_capture)]
-        if !self.has_migration(ANNOTATE_DEFAULT_MIGRATION) {
-            self.capture.enabled = true;
-            self.migrations.push(ANNOTATE_DEFAULT_MIGRATION.into());
-        }
-    }
-
-    fn has_migration(&self, id: &str) -> bool {
-        self.migrations.iter().any(|applied| applied == id)
-    }
-
-    /// Whether these settings come from before the `anomaly.hex` identity.
-    #[cfg(target_os = "macos")]
-    pub(crate) fn predates_anomaly_identity(&self) -> bool {
-        !self.has_migration(ANOMALY_IDENTITY_MIGRATION)
-    }
-
-    /// Records the identity check in the file at `path`, changing nothing else.
-    #[cfg(target_os = "macos")]
-    pub(crate) fn record_anomaly_identity(&mut self, path: &std::path::Path) -> Result<()> {
-        if self.predates_anomaly_identity() {
-            self.migrations.push(ANOMALY_IDENTITY_MIGRATION.into());
-            self.write_to(path)?;
-        }
-        Ok(())
-    }
-
-    /// English dictation moves to Parakeet Unified English, which streams
-    /// while the shortcut is held. The previous model stays downloaded and
-    /// in the recent models, one click away. Other languages and Auto keep
-    /// their model because Parakeet Unified is English-only. Only an installed
-    /// model is switched to, so an upgrade never leaves dictation waiting on a
-    /// download.
-    fn switch_english_to_streaming_model(
-        &mut self,
-        installed: impl Fn(&crate::transcription::models::ModelDefinition) -> bool,
-    ) {
-        if self.transcription.language != "en"
-            || self.transcription.model == TranscriptionModelId::ParakeetUnifiedEnglish
-        {
-            return;
-        }
-        let model =
-            crate::transcription::models::definition(TranscriptionModelId::ParakeetUnifiedEnglish);
-        if !installed(model) {
-            return;
-        }
-        let selection = TranscriptionSelection {
-            model: model.id,
-            language: "en".into(),
-        };
-        if crate::transcription::models::validate(&selection).is_err() {
-            return;
-        }
-        tracing::info!(
-            from = self.transcription.model.as_str(),
-            "switched English dictation to the streaming English model"
-        );
-        self.remember_transcription(selection);
-    }
-
-    fn migrate_disabled_transcription_model(&mut self) {
-        if self.transcription.model.is_labs_gated()
-            || crate::transcription::models::definition(self.transcription.model).available()
-        {
-            return;
-        }
-        tracing::warn!(
-            model = self.transcription.model.as_str(),
-            "replaced a disabled transcription model"
-        );
-        self.transcription = TranscriptionSelection::default();
     }
 
     pub fn runtime_hotkeys(&self) -> RuntimeHotkeys {
@@ -3056,18 +2926,19 @@ mod tests {
         let dir = TestSettingsDir::new("keyboard-mappings");
         let mut settings = AppSettings::default();
         let russian = KeyboardModelChoice {
-            model: TranscriptionModelId::ParakeetV3,
+            model: TranscriptionModelId::OpenAi,
             language: "ru".into(),
         };
         settings
             .keyboard_model_switching
             .mappings
             .insert("Russian".into(), russian.clone());
+        // OpenAI takes no Cantonese language code.
         settings.keyboard_model_switching.mappings.insert(
-            "Japanese".into(),
+            "Cantonese".into(),
             KeyboardModelChoice {
-                model: TranscriptionModelId::ParakeetUnifiedEnglish,
-                language: "ja".into(),
+                model: TranscriptionModelId::OpenAi,
+                language: "yue".into(),
             },
         );
         settings.write_to(&dir.path).unwrap();
@@ -3410,6 +3281,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: no Parakeet Unified English to switch to"]
     fn english_dictation_switches_to_the_installed_streaming_model_once() {
         let mut settings: AppSettings =
             serde_json::from_str(&english(TranscriptionModelId::ParakeetV3)).unwrap();
@@ -3481,20 +3353,18 @@ mod tests {
     #[test]
     fn new_settings_need_no_one_time_migration() {
         assert!(AppSettings::default().has_migration(STREAMING_ENGLISH_MIGRATION));
+        assert!(AppSettings::default().has_migration(OPENAI_ONLY_MIGRATION));
         let dir = TestSettingsDir::new("streaming-new");
         let settings = AppSettings {
             transcription: TranscriptionSelection {
-                model: TranscriptionModelId::ParakeetV3,
-                language: "en".into(),
+                model: TranscriptionModelId::OpenAi,
+                language: "fr".into(),
             },
             ..AppSettings::default()
         };
         settings.write_to(&dir.path).unwrap();
         let reloaded = AppSettings::load_from(&dir.path).unwrap();
-        assert_eq!(
-            reloaded.transcription.model,
-            TranscriptionModelId::ParakeetV3
-        );
+        assert_eq!(reloaded.transcription, settings.transcription);
     }
 
     #[test]
@@ -3846,7 +3716,7 @@ mod tests {
     fn transcription_selection_round_trips() {
         let settings = AppSettings {
             transcription: TranscriptionSelection {
-                model: crate::transcription::models::TranscriptionModelId::WhisperLargeV3Turbo,
+                model: crate::transcription::models::TranscriptionModelId::OpenAi,
                 language: "zh".into(),
             },
             ..AppSettings::default()
@@ -3860,6 +3730,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: one model, so there is no other to switch to"]
     fn model_switches_remember_language_without_changing_other_settings() {
         let french = TranscriptionSelection {
             model: TranscriptionModelId::WhisperLargeV3Turbo,
@@ -3907,7 +3778,7 @@ mod tests {
         settings.dictation_processing.default_mode.name = "Unsaved mode".into();
         let before = serde_json::to_value(&settings).unwrap();
         let candidate = TranscriptionSelection {
-            model: TranscriptionModelId::WhisperLargeV3Turbo,
+            model: TranscriptionModelId::OpenAi,
             language: "fr".into(),
         };
         let error = settings
@@ -3964,7 +3835,7 @@ mod tests {
     fn automatic_language_selection_round_trips_explicitly() {
         let settings = AppSettings {
             transcription: TranscriptionSelection {
-                model: crate::transcription::models::TranscriptionModelId::WhisperLargeV3Turbo,
+                model: crate::transcription::models::TranscriptionModelId::OpenAi,
                 language: crate::transcription::models::AUTO_LANGUAGE.into(),
             },
             ..AppSettings::default()
@@ -3985,7 +3856,14 @@ mod tests {
                 .unwrap();
 
         settings.migrate_disabled_transcription_model();
-        assert_eq!(settings.transcription, TranscriptionSelection::default());
+        // The default (OpenAI) takes German, so the language stays.
+        assert_eq!(
+            settings.transcription,
+            TranscriptionSelection {
+                language: "de".into(),
+                ..TranscriptionSelection::default()
+            }
+        );
     }
 
     #[test]

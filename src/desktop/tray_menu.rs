@@ -236,6 +236,22 @@ mod tests {
     use crate::transcription::models::TranscriptionSelection;
 
     #[test]
+    fn model_menu_shows_openai_as_the_model_in_use() {
+        let settings = AppSettings {
+            transcription: TranscriptionSelection {
+                model: TranscriptionModelId::OpenAi,
+                language: "de".into(),
+            },
+            ..AppSettings::default()
+        };
+        let entries = model_menu_entries(&settings, false, |_, _| true);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].title, "OpenAI · German");
+        assert!(entries[0].selected && !entries[0].enabled);
+    }
+
+    #[test]
+    #[ignore = "openai-only: no downloaded models to list beside OpenAI"]
     fn model_menu_only_lists_downloaded_models_with_their_remembered_language() {
         let mut settings = AppSettings::default();
         settings.remember_transcription(TranscriptionSelection {

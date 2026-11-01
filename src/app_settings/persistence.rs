@@ -73,6 +73,7 @@ impl AppSettings {
         settings.normalize_double_tap_settings();
         settings.migrate_legacy_replacements();
         settings.normalize_mode_application_names();
+        settings.migrate_to_openai_once();
         settings.migrate_disabled_transcription_model();
         for hints in &hints {
             crate::dictation::vocabulary::fold_hints(&mut settings.vocabulary, hints);

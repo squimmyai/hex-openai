@@ -57,6 +57,7 @@ fn keyboard_model_switching_is_a_labs_toggle_wherever_layouts_are_observable() {
 }
 
 #[test]
+#[ignore = "openai-only: the model menu has one model, so there is no second item"]
 fn keyboard_model_switching_maps_enabled_sources_to_an_installed_model_and_language() {
     use crate::app_settings::KeyboardModelChoice;
     let mut rt = runtime("mac-settings");

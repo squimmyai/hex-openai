@@ -1370,35 +1370,32 @@ mod tests {
         use crate::transcription::models::{TranscriptionModelId as Id, TranscriptionSelection};
         let settings = crate::app_settings::AppSettings {
             transcription: TranscriptionSelection {
-                model: Id::ParakeetV3,
-                language: "en".into(),
-            },
-            transcription_recents: vec![TranscriptionSelection {
-                model: Id::WhisperLargeV3Turbo,
+                model: Id::OpenAi,
                 language: "de".into(),
-            }],
+            },
             ..Default::default()
         };
         let pick = |model, language| model_selection(&settings, model, language);
-        let remembered = pick("whisper_large_v3_turbo", None).unwrap();
+        let remembered = pick("openai", None).unwrap();
         assert_eq!(remembered.language, "de");
-        let french = pick("whisper_large_v3_turbo", Some("fr")).unwrap();
+        let french = pick("openai", Some("fr")).unwrap();
         assert_eq!(french.language, "fr");
-        // Whisper's wildcard takes any language Hex knows, not any string.
-        for (model, language) in [
-            ("whisper_large_v3_turbo", "klingon"),
-            ("sense_voice_small", "de"),
-        ] {
+        // OpenAI takes ISO-639-1 codes Hex knows, not any string.
+        for language in ["klingon", "yue"] {
             assert_eq!(
-                pick(model, Some(language)).unwrap_err().code,
+                pick("openai", Some(language)).unwrap_err().code,
                 "invalid-value",
-                "{model} {language}"
+                "{language}"
             );
         }
-        assert_eq!(
-            pick("apple_speech", None).unwrap_err().code,
-            "unknown-model"
-        );
+        // Only OpenAI runs in this build.
+        for model in ["whisper_large_v3_turbo", "apple_speech"] {
+            assert_eq!(
+                pick(model, None).unwrap_err().code,
+                "unknown-model",
+                "{model}"
+            );
+        }
     }
 
     #[test]

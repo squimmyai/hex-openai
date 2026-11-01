@@ -1430,16 +1430,12 @@ mod tests {
                 .filter(|model| model.available())
                 .count()
         );
-        assert_eq!(models[0]["id"], "parakeet_unified_en");
-        assert!(models[0]["downloadBytes"].is_number());
-        assert_eq!(models[0]["supportsLanguageDetection"], false);
-        let whisper = models
-            .iter()
-            .find(|model| model["id"] == "whisper_large_v3_turbo")
-            .unwrap();
-        assert_eq!(whisper["supportsLanguageDetection"], true);
+        // This build lists only OpenAI, which downloads nothing.
+        assert_eq!(models[0]["id"], "openai");
+        assert!(models[0]["downloadBytes"].is_null());
+        assert_eq!(models[0]["supportsLanguageDetection"], true);
         assert!(
-            whisper["languages"]
+            models[0]["languages"]
                 .as_array()
                 .unwrap()
                 .contains(&"auto".into())
@@ -1828,10 +1824,7 @@ mod tests {
 
     #[test]
     fn model_selection_accepts_auto_only_for_detection_models() {
-        assert!(
-            transcription_selection("/transcriptions?model=whisper_large_v3_turbo&language=auto")
-                .is_ok()
-        );
+        assert!(transcription_selection("/transcriptions?model=openai&language=auto").is_ok());
         assert!(
             transcription_selection("/transcriptions?model=parakeet_v2&language=auto").is_err()
         );
@@ -2077,7 +2070,7 @@ mod tests {
         let action = handle_request(
             HttpRequest {
                 method: "POST".into(),
-                path: "/models/parakeet_v2/prepare".into(),
+                path: "/models/openai/prepare".into(),
                 authorization: Some("Bearer test-token".into()),
                 dictation_token: None,
                 stream_token: None,
