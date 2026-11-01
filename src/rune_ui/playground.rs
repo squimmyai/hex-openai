@@ -233,6 +233,15 @@ const PATHS: &[(&str, &str)] = &[
     ("commands", "Linux & Windows/Settings · hex commands"),
     ("portal-mouse", "Linux & Windows/Settings · mouse button"),
     ("windows-settings", "Linux & Windows/Settings · Windows"),
+    ("openai-key", "Linux & Windows/Settings · OpenAI API key"),
+    (
+        "openai-key-saved",
+        "Linux & Windows/Settings · OpenAI API key saved",
+    ),
+    (
+        "openai-key-proxy",
+        "Linux & Windows/Settings · OpenAI through a proxy",
+    ),
     ("disabled", "Linux & Windows/Disabled"),
     ("capturing", "Linux & Windows/Recording a shortcut"),
     ("menus", "Linux & Windows/Microphone menu"),

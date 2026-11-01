@@ -51,7 +51,7 @@ impl std::fmt::Debug for Config {
 
 /// Where Settings says the key comes from. It holds no key, only its last
 /// characters.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum KeySource {
     /// An environment variable sets it, which Settings can't change.
     Variable(&'static str),
@@ -60,6 +60,7 @@ pub enum KeySource {
     Proxy(String),
     /// Saved in `openai.json`: its masked form.
     Saved(String),
+    #[default]
     Missing,
 }
 

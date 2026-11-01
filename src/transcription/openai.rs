@@ -29,7 +29,7 @@ use crate::transcription::transcript::{Transcript, TranscriptSegment};
 mod client;
 mod config;
 
-pub use config::{Config, KeySource, save_api_key};
+pub use config::{Config, KeySource, masked, save_api_key};
 
 /// This build transcribes only through OpenAI: the catalog offers no other
 /// model, imports never show, and nothing downloads a speech model.

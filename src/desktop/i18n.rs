@@ -1211,6 +1211,18 @@ const TRANSLATIONS: &[(&str, [&str; 6])] = &[
     ("Lives quietly in your menu bar", ["Działa po cichu na pasku menu", "安静地待在菜单栏中", "メニューバーで静かに待機します", "Wartet leise in deiner Menüleiste", "Vive tranquilo en tu barra de menús", "Тихо живе в рядку меню"]),
     ("Lives quietly in your system tray", ["Działa po cichu w zasobniku systemowym", "安静地待在系统托盘中", "システムトレイで静かに待機します", "Wartet leise im Infobereich", "Vive tranquilo en la bandeja del sistema", "Тихо живе в системному лотку"]),
     ("Open it again from your app launcher", ["Otworzysz go ponownie z programu uruchamiającego", "可从应用启动器中再次打开", "アプリランチャーからいつでも開けます", "Öffne es jederzeit wieder über deinen App-Starter", "Ábrelo de nuevo desde tu lanzador de apps", "Відкрийте його знову з панелі запуску програм"]),
+    ("Sends your speech to OpenAI, which writes it out", ["Wysyła twoją mowę do OpenAI, które ją zapisuje", "将你的语音发送给 OpenAI，由它转写成文字", "音声を OpenAI に送り、文字に起こしてもらいます", "Sendet deine Sprache an OpenAI, das sie aufschreibt", "Envía tu voz a OpenAI, que la transcribe", "Надсилає ваше мовлення до OpenAI, яке його записує"]),
+    ("Dictating in", ["Dyktowanie:", "使用", "言語", "Diktieren auf", "Dictado en", "Диктування:"]),
+    ("through OpenAI", ["przez OpenAI", "听写，由 OpenAI 转写", "で OpenAI が書き起こします", "über OpenAI", "con OpenAI", "через OpenAI"]),
+    ("Runs on", ["Działa na", "运行于", "実行場所", "Läuft auf", "Se ejecuta en", "Працює на"]),
+    ("OpenAI's servers", ["Serwery OpenAI", "OpenAI 的服务器", "OpenAI のサーバー", "OpenAI-Server", "Servidores de OpenAI", "Сервери OpenAI"]),
+    ("OpenAI API key", ["Klucz API OpenAI", "OpenAI API 密钥", "OpenAI API キー", "OpenAI-API-Schlüssel", "Clave de API de OpenAI", "Ключ API OpenAI"]),
+    ("Set by {} on this computer", ["Ustawiony przez {} na tym komputerze", "由此电脑上的 {} 设置", "このコンピュータの {} で設定されています", "Auf diesem Computer durch {} festgelegt", "Definida por {} en este equipo", "Задано через {} на цьому комп’ютері"]),
+    ("Requests go through {}, which adds the key", ["Żądania przechodzą przez {}, który dodaje klucz", "请求经由 {} 发送，由它添加密钥", "リクエストは {} を経由し、そこでキーが追加されます", "Anfragen laufen über {}, das den Schlüssel hinzufügt", "Las solicitudes pasan por {}, que añade la clave", "Запити йдуть через {}, який додає ключ"]),
+    ("Saved on this computer only", ["Zapisany tylko na tym komputerze", "仅保存在此电脑上", "このコンピュータにのみ保存", "Nur auf diesem Computer gespeichert", "Guardada solo en este equipo", "Збережено лише на цьому комп’ютері"]),
+    ("Change", ["Zmień", "更改", "変更", "Ändern", "Cambiar", "Змінити"]),
+    ("Dictation needs one; it stays on this computer", ["Potrzebny do dyktowania; zostaje na tym komputerze", "听写需要它；它只保存在此电脑上", "音声入力に必要です。このコンピュータの外には出ません", "Zum Diktieren nötig; er bleibt auf diesem Computer", "El dictado la necesita; se queda en este equipo", "Потрібен для диктування; залишається на цьому комп’ютері"]),
+    ("Couldn't save the key: {}", ["Nie udało się zapisać klucza: {}", "无法保存密钥：{}", "キーを保存できませんでした: {}", "Der Schlüssel konnte nicht gespeichert werden: {}", "No se pudo guardar la clave: {}", "Не вдалося зберегти ключ: {}"]),
 ];
 
 #[cfg(test)]
@@ -1299,6 +1311,7 @@ mod tests {
         include_str!("../rune_ui/explainer.rs"),
         include_str!("../rune_ui/fun.rs"),
         include_str!("../rune_ui/general.rs"),
+        include_str!("../rune_ui/openai_key.rs"),
         include_str!("../rune_ui/history.rs"),
         include_str!("../rune_ui/hud_lab.rs"),
         include_str!("../rune_ui/labs.rs"),

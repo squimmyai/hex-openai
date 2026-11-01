@@ -778,6 +778,12 @@ fn launch_at_login_rows(ui: &Ui, p: Paint) -> Vec<CardRow> {
 
 /// How the shortcut triggers and the microphone's idle release.
 fn dictation(ui: &Ui, p: Paint, layer: &mut Vec<El>) -> Vec<CardRow> {
+    let mut rows = super::openai_key::rows(ui, p);
+    rows.extend(dictation_rows(ui, p, layer));
+    rows
+}
+
+fn dictation_rows(ui: &Ui, p: Paint, layer: &mut Vec<El>) -> Vec<CardRow> {
     use super::platform_settings::{SIDES, picked_side, side_binding};
     let settings = &ui.settings;
     let mut rows: Vec<CardRow> = Vec::new();

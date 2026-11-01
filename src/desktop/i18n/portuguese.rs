@@ -961,6 +961,18 @@ const TRANSLATIONS: &[(&str, &str)] = &[
     ("Lives quietly in your menu bar", "Fica quietinho na sua barra de menus"),
     ("Lives quietly in your system tray", "Fica quietinho na bandeja do sistema"),
     ("Open it again from your app launcher", "Abra de novo pelo seu lançador de apps"),
+    ("Sends your speech to OpenAI, which writes it out", "Envia sua fala para a OpenAI, que a transcreve"),
+    ("Dictating in", "Ditado em"),
+    ("through OpenAI", "pela OpenAI"),
+    ("Runs on", "Roda em"),
+    ("OpenAI's servers", "Servidores da OpenAI"),
+    ("OpenAI API key", "Chave de API da OpenAI"),
+    ("Set by {} on this computer", "Definida por {} neste computador"),
+    ("Requests go through {}, which adds the key", "As solicitações passam por {}, que adiciona a chave"),
+    ("Saved on this computer only", "Salva somente neste computador"),
+    ("Change", "Alterar"),
+    ("Dictation needs one; it stays on this computer", "O ditado precisa dela; ela fica neste computador"),
+    ("Couldn't save the key: {}", "Não foi possível salvar a chave: {}"),
 ];
 
 #[cfg(test)]

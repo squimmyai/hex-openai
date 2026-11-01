@@ -43,6 +43,7 @@ mod models;
 mod modes;
 mod onboarding;
 mod onboarding_kit;
+mod openai_key;
 mod output;
 mod picker;
 mod platform;
@@ -73,6 +74,7 @@ use crate::desktop::host::{
 };
 use crate::desktop::i18n::{tr, tr_fill};
 use crate::transcription::models::TranscriptionModelId;
+use crate::transcription::openai::KeySource;
 use controls::{METRICS, Paint};
 use host::{Backend, Request, ShortcutTarget};
 use onboarding_kit::live::Page;
@@ -822,6 +824,8 @@ pub(crate) struct Ui {
     platform: platform::PlatformState,
     host: platform::PlatformHost,
     meetings: meetings::MeetingsPane,
+    /// General › Advanced › OpenAI API key.
+    openai_key: openai_key::KeyRow,
     fun: fun::FunPane,
     activity: activity::ActivityPane,
     /// HUD Lab's preset was copied since it last changed.
@@ -876,6 +880,7 @@ impl Ui {
         ui.tour = onboarding::Tour::start(&ui.settings, &ui.platform);
         onboarding_kit::live::open(&mut ui);
         ui.platform.set_login_item(host::launch_at_login());
+        ui.openai_key = openai_key::KeyRow::load();
         ui
     }
 
@@ -919,6 +924,7 @@ impl Ui {
             platform: platform::PlatformState::new(platform::Capabilities::current()),
             host: platform::PlatformHost::Local(Default::default()),
             meetings: meetings::MeetingsPane::default(),
+            openai_key: openai_key::KeyRow::default(),
             fun: fun::FunPane::default(),
             activity: activity::ActivityPane::default(),
             hud_copied: false,
@@ -2146,26 +2152,26 @@ const SCENES: &[Scene] = &[
     // with nothing found, the model step with models found here, the demo,
     // waiting for the model, the practice game, and Hex is ready.
     ("onboarding", |ui| {
-        first_run(ui, FirstRun::Fresh, Page::Download)
+        onboarding::first_run(ui, onboarding::FirstRun::Fresh, Page::Download)
     }),
     ("onboarding-download-failed", |ui| {
-        first_run(ui, FirstRun::Failed, Page::Download)
+        onboarding::first_run(ui, onboarding::FirstRun::Failed, Page::Download)
     }),
     ("onboarding-model-found", found::listed),
     ("onboarding-model-found-downloading", found::loading),
     ("onboarding-model-found-recommended", found::present),
     ("onboarding-model-found-back", found::chosen),
     ("onboarding-demo", |ui| {
-        first_run(ui, FirstRun::Downloading, Page::Demo)
+        onboarding::first_run(ui, onboarding::FirstRun::Downloading, Page::Demo)
     }),
     ("onboarding-waiting", |ui| {
-        first_run(ui, FirstRun::Downloading, Page::Waiting)
+        onboarding::first_run(ui, onboarding::FirstRun::Downloading, Page::Waiting)
     }),
     ("onboarding-try", |ui| {
-        first_run(ui, FirstRun::Ready, Page::Try)
+        onboarding::first_run(ui, onboarding::FirstRun::Ready, Page::Try)
     }),
     ("onboarding-ready", |ui| {
-        first_run(ui, FirstRun::Ready, Page::Ready)
+        onboarding::first_run(ui, onboarding::FirstRun::Ready, Page::Ready)
     }),
     // This build's first run: OpenAI is ready, so it opens on the demo.
     ("onboarding-openai", onboarding::openai_fixture),
@@ -2369,6 +2375,13 @@ const SCENES: &[Scene] = &[
         ui.platform = platform::PlatformState::preview(platform::Capabilities::WINDOWS);
         ui.host = platform::PlatformHost::Fixture(Vec::new());
         ui.settings.paste_with_shift = false;
+    }),
+    ("openai-key", |ui| openai_key::scene(ui, Default::default())),
+    ("openai-key-saved", |ui| {
+        openai_key::scene(ui, KeySource::Saved("••••3f9a".into()))
+    }),
+    ("openai-key-proxy", |ui| {
+        openai_key::scene(ui, KeySource::Proxy("ai.corp.example".into()))
     }),
     ("meetings", |ui| {
         *ui = mac_fixture();
@@ -2574,42 +2587,6 @@ const SCENES: &[Scene] = &[
         mac_first_run(ui, onboarding::MacStep::Done, Page::Ready)
     }),
 ];
-
-/// The tour state a Linux first-run scene starts from.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum FirstRun {
-    /// Nothing installed; the recommended model just started downloading.
-    Fresh,
-    /// The download is a third of the way.
-    Downloading,
-    /// The download stopped.
-    Failed,
-    /// The model is installed.
-    Ready,
-}
-
-fn first_run(ui: &mut Ui, state: FirstRun, page: Page) {
-    *ui = portal_fixture();
-    onboarding::fixture(ui, crate::desktop::onboarding::Step::Setup, true);
-    match state {
-        FirstRun::Fresh => onboarding::set_downloaded(ui, 8),
-        FirstRun::Downloading => onboarding::set_downloaded(ui, 31),
-        FirstRun::Failed => {
-            if let Some(view) = &mut ui.view {
-                view.transcription.preparing = None;
-                view.transcription.error = Some("The connection was reset.".into());
-            }
-        }
-        FirstRun::Ready => {
-            ui.picker.installed = Some(vec![ui.settings.transcription.model]);
-            if let Some(view) = &mut ui.view {
-                view.transcription.preparing = None;
-            }
-        }
-    }
-    onboarding::poll(ui);
-    onboarding_kit::live::fixture(ui, page);
-}
 
 fn mac_first_run(ui: &mut Ui, step: onboarding::MacStep, page: Page) {
     *ui = mac_fixture();
