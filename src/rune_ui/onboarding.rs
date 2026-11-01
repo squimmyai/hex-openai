@@ -243,9 +243,11 @@ pub(super) fn fixture(ui: &mut Ui, step: Step, downloading: bool) {
     }
 }
 
-/// A first run where the selected model is ready from the start, as with
-/// OpenAI, which downloads nothing.
-pub(super) fn ready_fixture(ui: &mut Ui) {
+/// This build's first run: OpenAI, which downloads nothing, is ready from
+/// the start, so the first run opens on the demo.
+pub(super) fn openai_fixture(ui: &mut Ui) {
+    *ui = super::portal_fixture();
+    ui.settings.transcription = Default::default();
     ui.picker.installed = Some(vec![ui.settings.transcription.model]);
     let status = ui.platform.setup_status(true);
     ui.tour = Some(Tour::new(
@@ -258,6 +260,7 @@ pub(super) fn ready_fixture(ui: &mut Ui) {
         false,
     ));
     poll(ui);
+    super::onboarding_kit::live::fixture(ui, super::onboarding_kit::live::Page::Demo);
 }
 
 pub(super) fn set_downloaded(ui: &mut Ui, percent: u64) {

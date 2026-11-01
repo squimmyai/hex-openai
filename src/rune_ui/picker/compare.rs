@@ -11,7 +11,7 @@ use super::{self as picker, View};
 use crate::desktop::i18n::{tr, tr_fill};
 use crate::rune_ui::Ui;
 use crate::rune_ui::controls::Paint;
-use crate::transcription::models::Recommendation;
+use crate::transcription::models::{Recommendation, TranscriptionModelId};
 
 pub(super) const WIDTH: f32 = 800.0;
 const LABEL: f32 = 156.0;
@@ -77,19 +77,29 @@ impl Measure {
     }
 }
 
+/// Whether every column is OpenAI, which has no wait or download to show.
+fn online(shown: &[&Entry]) -> bool {
+    shown
+        .iter()
+        .all(|entry| entry.def.id == TranscriptionModelId::OpenAi)
+}
+
 fn measures(ui: &Ui, shown: &[&Entry], language: &str) -> Vec<Measure> {
-    let mut measures = vec![Measure {
-        key: "wait",
-        label: tr("Wait when you stop"),
-        values: shown
-            .iter()
-            .map(|entry| facts::wait_label(entry.def))
-            .collect(),
-        scores: shown
-            .iter()
-            .map(|entry| facts::wait_score(entry.def))
-            .collect(),
-    }];
+    let mut measures = Vec::new();
+    if !online(shown) {
+        measures.push(Measure {
+            key: "wait",
+            label: tr("Wait when you stop"),
+            values: shown
+                .iter()
+                .map(|entry| facts::wait_label(entry.def))
+                .collect(),
+            scores: shown
+                .iter()
+                .map(|entry| facts::wait_score(entry.def))
+                .collect(),
+        });
+    }
     // Wrong words only where at least one column was measured in the
     // language, in the first measured column's terms.
     let measured: Vec<_> = shown
@@ -145,6 +155,19 @@ fn measures(ui: &Ui, shown: &[&Entry], language: &str) -> Vec<Measure> {
             .map(|entry| facts::reads_vocabulary(ui, entry.def).then_some(1.0))
             .collect(),
     });
+    // OpenAI downloads nothing: say where it runs instead.
+    if online(shown) {
+        measures.push(Measure {
+            key: "runs-on",
+            label: tr("Runs on"),
+            values: shown
+                .iter()
+                .map(|_| tr("OpenAI's servers").into())
+                .collect(),
+            scores: shown.iter().map(|_| None).collect(),
+        });
+        return measures;
+    }
     measures.push(Measure {
         key: "download",
         label: tr("Download"),

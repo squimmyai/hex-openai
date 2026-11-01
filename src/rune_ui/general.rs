@@ -889,9 +889,10 @@ fn dictation(ui: &Ui, p: Paint, layer: &mut Vec<El>) -> Vec<CardRow> {
         )
         .into(),
     );
-    // macOS runs its models on Metal or Apple's speech engine.
+    // macOS runs its models on Metal or Apple's speech engine, and OpenAI
+    // runs on its servers.
     #[cfg(any(target_os = "linux", target_os = "windows"))]
-    if ui.platform.caps.os != super::platform::Os::Macos {
+    if ui.platform.caps.os != super::platform::Os::Macos && !crate::transcription::openai::ONLY {
         rows.push(speech_engine_row(ui, p, layer));
     }
     rows

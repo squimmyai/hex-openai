@@ -111,6 +111,10 @@ pub fn last() -> Vec<Found> {
 /// Scans the hub cache now: headers only, and only files that changed since
 /// they were last read. Exact catalog matches come first.
 pub fn scan() -> Vec<Found> {
+    // Nothing found could run where only OpenAI transcribes.
+    if super::openai::ONLY {
+        return Vec::new();
+    }
     let mut found = hub_dir().map(|hub| scan_in(&hub)).unwrap_or_default();
     for model in &mut found {
         model.too_big = likely_too_big(model.tensor_bytes);

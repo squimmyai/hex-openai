@@ -55,7 +55,8 @@ fn wake(waker: Option<Waker>) -> impl Fn() + Send + 'static {
 /// Starts a scan when the picker or onboarding's model step opens. Headers
 /// only, and an unchanged file is answered from the cache.
 pub(super) fn scan(ui: &mut Ui) {
-    if !ui.live() || ui.found.scan.is_some() {
+    // Nothing found could run where only OpenAI transcribes.
+    if crate::transcription::openai::ONLY || !ui.live() || ui.found.scan.is_some() {
         return;
     }
     ui.found.scanned = true;
