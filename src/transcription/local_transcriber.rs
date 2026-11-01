@@ -15,7 +15,8 @@ use crate::transcription::models::{
 /// A word or segment's start and end (ms from the clip's start) and text.
 pub type TimedSpan = (i64, i64, String);
 
-pub struct LocalTranscriber {
+/// A loaded GGUF model.
+pub struct GgufTranscriber {
     session: OfflineGgufSession,
     selection: TranscriptionSelection,
     options: RunOptions,
@@ -59,6 +60,10 @@ pub(crate) fn device() -> TranscriptionDevice {
 
 pub fn install(selection: &TranscriptionSelection, canceled: &AtomicBool) -> Result<()> {
     let model = validate(selection)?;
+    if matches!(model.runtime, crate::transcription::models::ModelRuntime::OpenAi) {
+        println!("{} runs on OpenAI's servers; there is nothing to install.", model.name);
+        return Ok(());
+    }
     let downloaded = AtomicU64::new(0);
     println!("Installing {} ({})...", model.name, model.size_label());
     let path = download_with_progress(model, canceled, &downloaded)?;
@@ -219,7 +224,7 @@ pub fn read_wav_for_parakeet(path: &Path) -> Result<Vec<f32>> {
     Ok(samples)
 }
 
-impl LocalTranscriber {
+impl GgufTranscriber {
     /// Loads and prewarms `selection` where Settings › Speech engine says:
     /// on Auto a GPU unless it failed before under its current driver
     /// ([`gpu_health`], #856), on GPU the best GPU, on CPU the CPU. A GPU load
@@ -583,6 +588,114 @@ impl LocalTranscriber {
                 run(self)
             }
             result => result,
+        }
+    }
+}
+
+/// The model the Linux and Windows engine holds: a loaded GGUF model, or
+/// OpenAI's API, which loads nothing and cannot stream.
+pub enum LocalTranscriber {
+    Gguf(Box<GgufTranscriber>),
+    OpenAi(crate::transcription::openai::OpenAiTranscriber),
+}
+
+impl LocalTranscriber {
+    pub fn load(selection: &TranscriptionSelection) -> Result<Self> {
+        match validate(selection)?.runtime {
+            crate::transcription::models::ModelRuntime::OpenAi => {
+                crate::transcription::openai::OpenAiTranscriber::load(selection).map(Self::OpenAi)
+            }
+            _ => GgufTranscriber::load(selection).map(|model| Self::Gguf(Box::new(model))),
+        }
+    }
+
+    pub(crate) fn stream_options(&self) -> Option<&transcribe_cpp::StreamOptions> {
+        match self {
+            Self::Gguf(model) => model.stream_options(),
+            Self::OpenAi(_) => None,
+        }
+    }
+
+    pub(crate) fn with_stream<R>(
+        &mut self,
+        stream_options: &transcribe_cpp::StreamOptions,
+        cancel: &transcribe_cpp::CancelToken,
+        drive: impl FnOnce(&mut transcribe_cpp::Stream<'_>) -> R,
+    ) -> transcribe_cpp::Result<R> {
+        match self {
+            Self::Gguf(model) => model.with_stream(stream_options, cancel, drive),
+            Self::OpenAi(_) => Err(transcribe_cpp::Error::NotImplemented(
+                "OpenAI transcription cannot stream".into(),
+            )),
+        }
+    }
+
+    /// The selection this model was loaded for, so the transcription engine
+    /// can say which model it holds.
+    pub(crate) fn gguf_selection(&self) -> Option<&TranscriptionSelection> {
+        match self {
+            Self::Gguf(model) => model.gguf_selection(),
+            Self::OpenAi(model) => Some(model.selection()),
+        }
+    }
+
+    pub(crate) fn matches_selection(&self, selection: &TranscriptionSelection) -> bool {
+        match self {
+            Self::Gguf(model) => model.matches_selection(selection),
+            Self::OpenAi(model) => model.matches_selection(selection),
+        }
+    }
+
+    pub(crate) fn prewarm(&mut self) -> Result<()> {
+        match self {
+            Self::Gguf(model) => model.prewarm(),
+            Self::OpenAi(_) => Ok(()),
+        }
+    }
+
+    pub(crate) fn transcribe_clip(&mut self, samples: Vec<f32>) -> Result<String> {
+        match self {
+            Self::Gguf(model) => model.transcribe_clip(samples),
+            Self::OpenAi(model) => model.transcribe(&samples),
+        }
+    }
+
+    pub fn device_label(&self) -> &str {
+        match self {
+            Self::Gguf(model) => model.device_label(),
+            Self::OpenAi(model) => model.device_label(),
+        }
+    }
+
+    pub fn transcribe_words(&mut self, samples: &[f32]) -> Result<(String, Vec<TimedSpan>)> {
+        match self {
+            Self::Gguf(model) => model.transcribe_words(samples),
+            Self::OpenAi(model) => {
+                let transcript = model.transcribe_segments(samples)?;
+                let spans = transcript
+                    .segments
+                    .into_iter()
+                    .map(|span| (span.start_ms, span.end_ms, span.text))
+                    .collect();
+                Ok((transcript.text, spans))
+            }
+        }
+    }
+
+    pub(crate) fn transcribe_segments(
+        &mut self,
+        samples: Vec<f32>,
+    ) -> Result<crate::transcription::transcript::Transcript> {
+        match self {
+            Self::Gguf(model) => model.transcribe_segments(samples),
+            Self::OpenAi(model) => model.transcribe_segments(&samples),
+        }
+    }
+
+    pub fn transcribe(&mut self, samples: &[f32]) -> Result<String> {
+        match self {
+            Self::Gguf(model) => model.transcribe(samples),
+            Self::OpenAi(model) => model.transcribe(samples),
         }
     }
 }

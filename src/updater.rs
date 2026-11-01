@@ -464,6 +464,12 @@ impl Updater {
 /// Whether an administrator turned updates off (`DisableUpdates`), read
 /// once per launch so a managed value applies at the next one.
 pub fn managed_by_policy() -> bool {
+    // This fork never takes the public Hex's updates: they would replace it
+    // with a build that has no OpenAI transcription. Ship new versions of it
+    // through your own distribution instead.
+    if crate::transcription::openai::ONLY {
+        return true;
+    }
     static MANAGED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *MANAGED.get_or_init(platform::updates_disabled_by_policy)
 }

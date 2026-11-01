@@ -207,7 +207,7 @@ pub(super) fn to_download(entry: &Entry) -> u64 {
 pub(super) fn size_text(def: &ModelDefinition) -> String {
     match def.runtime {
         ModelRuntime::AppleSpeech => tr("Managed by macOS").into(),
-        ModelRuntime::Gguf(_) => def.size_label(),
+        ModelRuntime::Gguf(_) | ModelRuntime::OpenAi => def.size_label(),
     }
 }
 

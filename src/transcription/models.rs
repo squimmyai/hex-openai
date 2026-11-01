@@ -30,7 +30,10 @@ pub use super::model_benchmarks::{BenchmarkRecord, benchmark};
 /// keeps the default for it without rewriting the file (#744).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum TranscriptionModelId {
+    /// OpenAI's hosted transcription API, the only model this build offers
+    /// (`transcription/openai`).
     #[default]
+    OpenAi,
     ParakeetUnifiedEnglish,
     ParakeetV2,
     ParakeetV3,
@@ -64,6 +67,7 @@ impl<'de> Deserialize<'de> for TranscriptionModelId {
 impl TranscriptionModelId {
     pub fn as_str(&self) -> &str {
         match self {
+            Self::OpenAi => "openai",
             Self::ParakeetUnifiedEnglish => "parakeet_unified_en",
             Self::ParakeetV2 => "parakeet_v2",
             Self::ParakeetV3 => "parakeet_v3",
@@ -99,6 +103,7 @@ impl FromStr for TranscriptionModelId {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "openai" => Ok(Self::OpenAi),
             "parakeet_unified_en" => Ok(Self::ParakeetUnifiedEnglish),
             "parakeet_v2" => Ok(Self::ParakeetV2),
             "parakeet_v3" => Ok(Self::ParakeetV3),
@@ -212,6 +217,8 @@ pub enum VocabularyUse {
 pub enum ModelRuntime {
     Gguf(&'static GgufArtifact),
     AppleSpeech,
+    /// Audio uploaded to OpenAI's transcription API (`transcription/openai`).
+    OpenAi,
 }
 
 pub struct GgufArtifact {
@@ -234,9 +241,14 @@ impl GgufArtifact {
 }
 
 impl ModelDefinition {
-    /// A catalog GGUF model, or an import that is on, present, and unchanged.
+    /// Only OpenAI: this build offers no on-device model, so the catalog's
+    /// GGUF models, imports, and Apple Speech never show or run.
     pub fn available(&self) -> bool {
+        if super::openai::ONLY {
+            return matches!(self.runtime, ModelRuntime::OpenAi);
+        }
         match (self.runtime, self.id) {
+            (ModelRuntime::OpenAi, _) => true,
             (ModelRuntime::AppleSpeech, _) => false,
             (ModelRuntime::Gguf(_), TranscriptionModelId::Custom(id)) => {
                 super::custom_models::usable(id)
@@ -314,6 +326,7 @@ impl ModelDefinition {
     pub fn size_label(&self) -> String {
         match self.runtime {
             ModelRuntime::AppleSpeech => "Managed".into(),
+            ModelRuntime::OpenAi => "Online".into(),
             ModelRuntime::Gguf(artifact) if artifact.bytes >= 1_000_000_000 => {
                 format!("{:.1} GB", artifact.bytes as f64 / 1_000_000_000.0)
             }
@@ -334,6 +347,8 @@ impl ModelDefinition {
             {
                 VocabularyUse::Prompt
             }
+            // Sent as the request's `keywords` (`transcription/openai`).
+            ModelRuntime::OpenAi => VocabularyUse::Prompt,
             _ => VocabularyUse::None,
         }
     }
@@ -366,6 +381,17 @@ pub const SPEECH_DETECTOR_ARTIFACT: GgufArtifact = GgufArtifact {
 const SPEECH_DETECTOR_NAME: &str = "the speech detector";
 
 pub const MODELS: &[ModelDefinition] = &[
+    ModelDefinition {
+        id: TranscriptionModelId::OpenAi,
+        name: "OpenAI",
+        realtime: "Online",
+        word_error_rate: None,
+        streams: false,
+        runtime: ModelRuntime::OpenAi,
+        languages: &["*"],
+        accepts_language_hint: true,
+        supports_language_detection: true,
+    },
     ModelDefinition {
         id: TranscriptionModelId::ParakeetUnifiedEnglish,
         name: "Parakeet Unified English",
@@ -574,6 +600,12 @@ pub(crate) fn choices_for_runtime(language: &str) -> Vec<ModelChoice> {
         CohereTranscribe, IvritWhisperLargeV3Turbo, ParakeetUnifiedEnglish, ParakeetV3,
         Qwen3Asr06B, SenseVoiceSmall, WhisperLargeV3Turbo,
     };
+    if super::openai::ONLY {
+        return vec![ModelChoice {
+            model: definition(TranscriptionModelId::OpenAi),
+            recommendation: Recommended,
+        }];
+    }
     let choices: &[(TranscriptionModelId, Recommendation)] = match language {
         AUTO_LANGUAGE => &[(WhisperLargeV3Turbo, Recommended), (Qwen3Asr06B, Fastest)],
         "en" => &[
@@ -755,7 +787,7 @@ pub fn max_audio_chunk_samples(architecture: &str, max_audio_ms: i64) -> Option<
 
 pub fn model_path(model: &ModelDefinition) -> Result<PathBuf> {
     let ModelRuntime::Gguf(artifact) = model.runtime else {
-        bail!("{} is managed by macOS and has no model path", model.name);
+        bail!("{} runs without a downloaded model", model.name);
     };
     let managed = models_dir()?.join(artifact.filename);
     // A catalog model another app downloaded (one already in use, or an
@@ -791,10 +823,16 @@ pub fn is_installed(model: &ModelDefinition, language: &str) -> bool {
         ModelRuntime::AppleSpeech => crate::apple_speech::AppleSpeech::is_ready(language),
         #[cfg(not(target_os = "macos"))]
         ModelRuntime::AppleSpeech => false,
+        // Nothing to download; a missing API key fails the first run with
+        // a message that says where to put one.
+        ModelRuntime::OpenAi => true,
     }
 }
 
 pub fn is_verified(model: &ModelDefinition) -> bool {
+    if matches!(model.runtime, ModelRuntime::OpenAi) {
+        return true;
+    }
     if let TranscriptionModelId::Custom(id) = model.id {
         return super::custom_models::status(id) == super::custom_models::Status::Ready;
     }
@@ -809,6 +847,9 @@ pub fn is_verified(model: &ModelDefinition) -> bool {
 
 pub fn verify_installed(model: &ModelDefinition, canceled: &AtomicBool) -> Result<PathBuf> {
     check_canceled(canceled)?;
+    if matches!(model.runtime, ModelRuntime::OpenAi) {
+        return Ok(PathBuf::new());
+    }
     if let TranscriptionModelId::Custom(id) = model.id {
         return super::custom_models::verify(id, canceled);
     }
@@ -1000,6 +1041,10 @@ pub fn download_with_stage_progress(
     downloaded_bytes: &AtomicU64,
     stage: &AtomicU8,
 ) -> Result<PathBuf> {
+    // OpenAI runs on its servers: there is nothing to download.
+    if matches!(model.runtime, ModelRuntime::OpenAi) {
+        return Ok(PathBuf::new());
+    }
     let ModelRuntime::Gguf(artifact) = model.runtime else {
         bail!("{} is installed and managed by macOS", model.name);
     };
