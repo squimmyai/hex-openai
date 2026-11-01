@@ -270,7 +270,11 @@ impl ModelDefinition {
 
     pub fn runtime_language<'a>(&self, language: &'a str) -> &'a str {
         match self.id {
-            TranscriptionModelId::WhisperLargeV3Turbo if language == "fil" => "tl",
+            TranscriptionModelId::WhisperLargeV3Turbo | TranscriptionModelId::OpenAi
+                if language == "fil" =>
+            {
+                "tl"
+            }
             // Its prompt and advertised languages are locales: `de-DE`.
             TranscriptionModelId::Nemotron35Asr => NEMOTRON_3_5_LOCALES
                 .iter()
@@ -388,7 +392,7 @@ pub const MODELS: &[ModelDefinition] = &[
         word_error_rate: None,
         streams: false,
         runtime: ModelRuntime::OpenAi,
-        languages: &["*"],
+        languages: super::openai::LANGUAGES,
         accepts_language_hint: true,
         supports_language_detection: true,
     },
@@ -601,10 +605,15 @@ pub(crate) fn choices_for_runtime(language: &str) -> Vec<ModelChoice> {
         Qwen3Asr06B, SenseVoiceSmall, WhisperLargeV3Turbo,
     };
     if super::openai::ONLY {
-        return vec![ModelChoice {
-            model: definition(TranscriptionModelId::OpenAi),
-            recommendation: Recommended,
-        }];
+        let openai = definition(TranscriptionModelId::OpenAi);
+        return if openai.supports_language(language) {
+            vec![ModelChoice {
+                model: openai,
+                recommendation: Recommended,
+            }]
+        } else {
+            Vec::new()
+        };
     }
     let choices: &[(TranscriptionModelId, Recommendation)] = match language {
         AUTO_LANGUAGE => &[(WhisperLargeV3Turbo, Recommended), (Qwen3Asr06B, Fastest)],
@@ -725,8 +734,10 @@ pub(crate) fn known_language(language: &str) -> Option<&'static str> {
 /// Whether a saved selection stays saved: one `validate` accepts, or an
 /// import with a known language, kept while it is missing, changed, or off
 /// so the choice survives until it is fixed ([`super::custom_models::runnable`]).
+///
+/// A build that runs only OpenAI keeps no import or Parakeet Ultra saved.
 pub fn validate_saved(selection: &TranscriptionSelection) -> Result<()> {
-    if selection.model.is_labs_gated() {
+    if selection.model.is_labs_gated() && !super::openai::ONLY {
         if !is_known_language(&selection.language) {
             bail!("unsupported transcription language: {}", selection.language);
         }
@@ -1231,9 +1242,14 @@ pub fn recommended_selection(language: &str) -> TranscriptionSelection {
         .iter()
         .find(|choice| choice.recommendation == Recommendation::Recommended)
         .or_else(|| choices.first())
-        .map_or(TranscriptionModelId::ParakeetUnifiedEnglish, |choice| {
-            choice.model.id
-        });
+        .map_or(TranscriptionModelId::default(), |choice| choice.model.id);
+    // OpenAI takes no code for some languages, such as Cantonese: it hears
+    // which one is spoken instead.
+    let language = if definition(model).supports_language(language) {
+        language
+    } else {
+        AUTO_LANGUAGE
+    };
     TranscriptionSelection {
         model,
         language: language.into(),
@@ -1370,6 +1386,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: a saved Parakeet Ultra moves to OpenAI instead of staying saved"]
     fn parakeet_ultra_is_offered_only_with_its_lab_and_a_saved_choice_survives() {
         let ultra = definition(TranscriptionModelId::ParakeetUltra);
         assert_eq!(ultra.available(), crate::labs::parakeet_ultra());
@@ -1415,6 +1432,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: Hebrew goes to OpenAI, not the Ivrit fine-tune"]
     fn hebrew_recommends_the_ivrit_fine_tune_with_its_hint() {
         use Recommendation::{Recommended, Vocabulary};
         use TranscriptionModelId::{IvritWhisperLargeV3Turbo, WhisperLargeV3Turbo};
@@ -1437,6 +1455,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: OpenAI is recommended for every language"]
     fn recommendations_are_language_specific() {
         let english = choices_for_runtime("en");
         assert_eq!(
@@ -1459,6 +1478,11 @@ mod tests {
                 .filter(|choice| choice.recommendation == Recommendation::Recommended)
                 .map(|choice| choice.model.id)
                 .collect();
+            // A language OpenAI has no code for dictates with detection.
+            if super::super::openai::ONLY && recommended.is_empty() {
+                assert_eq!(recommended_selection(language).language, AUTO_LANGUAGE);
+                continue;
+            }
             assert_eq!(recommended.len(), 1, "{language}: {recommended:?}");
             assert_eq!(
                 recommended_selection(language).model,
@@ -1469,6 +1493,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: Whisper is unavailable"]
     fn whisper_accepts_its_languages_beyond_the_settings_list() {
         for language in ["ta", "te"] {
             let whisper = TranscriptionSelection {
@@ -1552,7 +1577,9 @@ mod tests {
             .filter(|model| model.streams)
             .map(|model| match model.runtime {
                 ModelRuntime::Gguf(artifact) => artifact.variant,
-                ModelRuntime::AppleSpeech => panic!("a streaming model has a GGUF artifact"),
+                ModelRuntime::AppleSpeech | ModelRuntime::OpenAi => {
+                    panic!("a streaming model has a GGUF artifact")
+                }
             })
             .collect::<Vec<_>>();
         assert_eq!(
@@ -1646,6 +1673,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: the GGUF models it pairs with languages are unavailable"]
     fn selections_require_model_language_compatibility() {
         assert!(validate(&TranscriptionSelection::default()).is_ok());
         assert!(
@@ -1672,6 +1700,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: OpenAI is the only choice for Auto"]
     fn automatic_language_choices_only_include_detection_models() {
         let choices = choices_for_runtime(AUTO_LANGUAGE);
 
@@ -1701,6 +1730,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: no per-language routing between local models"]
     fn weak_qwen_and_parakeet_languages_route_to_stronger_shipped_models() {
         use Recommendation::{Fastest, MostAccurate, Recommended, Vocabulary};
         use TranscriptionModelId::{
@@ -1765,6 +1795,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: every language picks OpenAI (first_run_picks_openai_in_every_language_it_takes)"]
     fn every_language_choice_supports_its_language_and_first_run_picks_it() {
         for (language, _) in LANGUAGES {
             let choices = choices_for_runtime(language);
@@ -1787,6 +1818,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: the picker lists only OpenAI (the_picker_lists_only_openai)"]
     fn the_picker_lists_every_model_with_the_language_s_recommendations_first() {
         let ids = |language| {
             picker_models(language)
@@ -1860,7 +1892,13 @@ mod tests {
         );
         for model in MODELS.iter().filter(|model| model.available()) {
             assert!(model.language_choices().contains(&model.default_language()));
-            let declared = model.languages.iter().filter(|code| **code != "*");
+            // OpenAI also takes Whisper's codes beyond the Settings list,
+            // which `hex settings` reaches as it does Whisper's `*`.
+            let declared = model.languages.iter().filter(|code| {
+                **code != "*"
+                    && (model.id != TranscriptionModelId::OpenAi
+                        || LANGUAGES.iter().any(|(listed, _)| listed == *code))
+            });
             for code in declared {
                 assert!(
                     model.language_choices().contains(code),
@@ -1883,6 +1921,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: Parakeet v3 is unavailable"]
     fn parakeet_v3_supports_portuguese_without_language_conditioning() {
         let selection = TranscriptionSelection {
             model: TranscriptionModelId::ParakeetV3,
@@ -1909,6 +1948,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: Bangla goes to OpenAI, not Whisper"]
     fn bangla_is_transcribed_by_whisper_with_its_language_hint() {
         let selection = recommended_selection("bn");
         assert_eq!(selection.model, TranscriptionModelId::WhisperLargeV3Turbo);
@@ -1928,6 +1968,48 @@ mod tests {
     }
 
     #[test]
+    fn first_run_picks_openai_in_every_language_it_takes() {
+        for (language, _) in LANGUAGES {
+            let selection = recommended_selection(language);
+            assert_eq!(selection.model, TranscriptionModelId::OpenAi, "{language}");
+            assert!(validate(&selection).is_ok(), "{language}");
+            let expected = if *language == "yue" {
+                AUTO_LANGUAGE
+            } else {
+                language
+            };
+            assert_eq!(selection.language, expected);
+        }
+        let openai = definition(TranscriptionModelId::OpenAi);
+        assert!(is_installed(openai, "en") && is_verified(openai));
+        assert_eq!(openai.download_bytes(), None);
+    }
+
+    #[test]
+    fn the_picker_lists_only_openai() {
+        for language in ["en", "de", AUTO_LANGUAGE] {
+            let models: Vec<_> = picker_models(language)
+                .into_iter()
+                .map(|(model, recommendation)| (model.id, recommendation))
+                .collect();
+            assert_eq!(
+                models,
+                [(
+                    TranscriptionModelId::OpenAi,
+                    Some(Recommendation::Recommended)
+                )],
+                "{language}"
+            );
+        }
+        assert!(
+            MODELS
+                .iter()
+                .filter(|model| model.available())
+                .all(|model| model.id == TranscriptionModelId::OpenAi)
+        );
+    }
+
+    #[test]
     fn whisper_and_qwen3_asr_read_the_vocabulary_as_a_prompt_and_parakeet_biases() {
         use TranscriptionModelId::*;
         let by = |kind| {
@@ -1940,6 +2022,7 @@ mod tests {
         assert_eq!(
             by(VocabularyUse::Prompt),
             [
+                OpenAi,
                 WhisperLargeV3Turbo,
                 Qwen3Asr06B,
                 QwenCleoAsr17B,
