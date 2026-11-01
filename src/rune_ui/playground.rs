@@ -271,6 +271,10 @@ const PATHS: &[(&str, &str)] = &[
     ("onboarding-try", "Linux & Windows/Onboarding · your turn"),
     ("onboarding-ready", "Linux & Windows/Onboarding · ready"),
     (
+        "onboarding-openai",
+        "Linux & Windows/Onboarding · OpenAI ready",
+    ),
+    (
         "windows-onboarding-microphone",
         "Linux & Windows/Onboarding · Windows microphone",
     ),

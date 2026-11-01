@@ -15,6 +15,8 @@ pub(super) const SCENES: &[&str] = &[
     // A fresh install: setting up Hex, the recommended model downloading.
     "onboarding",
     "mac-onboarding",
+    // This build: OpenAI is ready at once, so nothing downloads.
+    "onboarding-openai",
     // The download stopped.
     "onboarding-download-failed",
     // The model step: models on this computer; the recommended one among

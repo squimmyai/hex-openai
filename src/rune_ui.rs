@@ -2167,6 +2167,14 @@ const SCENES: &[Scene] = &[
     ("onboarding-ready", |ui| {
         first_run(ui, FirstRun::Ready, Page::Ready)
     }),
+    // This build's first run: OpenAI is ready at once, so it opens on the
+    // demo and nothing downloads.
+    ("onboarding-openai", |ui| {
+        *ui = portal_fixture();
+        ui.settings.transcription = Default::default();
+        onboarding::ready_fixture(ui);
+        onboarding_kit::live::fixture(ui, Page::Demo);
+    }),
     // Windows with its microphone privacy switch off.
     ("windows-onboarding-microphone", |ui| {
         *ui = fixture(DesktopShortcuts::Registered);

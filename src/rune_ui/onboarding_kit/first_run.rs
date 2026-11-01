@@ -382,27 +382,23 @@ fn download_page(p: Paint, s: &Onboard, waiting: bool) -> El {
             lead(p, tr("Finishing the speech model so Hex can hear you.")),
         )
     } else {
+        // OpenAI downloads nothing: the page names the service instead.
+        let (pre, post) = if crate::transcription::openai::ONLY {
+            (tr("Dictating in"), tr("through OpenAI"))
+        } else {
+            (tr("Downloading"), tr("speech model"))
+        };
         let subtitle = row()
             .key("download-line")
             .gap(7.0)
             .center_y()
-            .child(
-                text(tr("Downloading"))
-                    .key("pre")
-                    .font(LEAD)
-                    .color(p.muted()),
-            )
+            .child(text(pre).key("pre").font(LEAD).color(p.muted()))
             .child(if s.live.is_some() {
                 language_capsule(p, d.language, live::cycle_language)
             } else {
                 language_capsule(p, d.language, Onboard::cycle_language)
             })
-            .child(
-                text(tr("speech model"))
-                    .key("post")
-                    .font(LEAD)
-                    .color(p.muted()),
-            );
+            .child(text(post).key("post").font(LEAD).color(p.muted()));
         heading(p, s, "download-head", tr("Setting up Hex"), subtitle)
     };
 

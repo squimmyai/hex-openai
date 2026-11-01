@@ -243,6 +243,23 @@ pub(super) fn fixture(ui: &mut Ui, step: Step, downloading: bool) {
     }
 }
 
+/// A first run where the selected model is ready from the start, as with
+/// OpenAI, which downloads nothing.
+pub(super) fn ready_fixture(ui: &mut Ui) {
+    ui.picker.installed = Some(vec![ui.settings.transcription.model]);
+    let status = ui.platform.setup_status(true);
+    ui.tour = Some(Tour::new(
+        Flow::new(
+            Step::Welcome,
+            status,
+            ui.platform.caps.permissions,
+            ui.platform.caps.practice_dictation,
+        ),
+        false,
+    ));
+    poll(ui);
+}
+
 pub(super) fn set_downloaded(ui: &mut Ui, percent: u64) {
     if let Some(view) = &mut ui.view {
         let model = ui.settings.transcription.model;
