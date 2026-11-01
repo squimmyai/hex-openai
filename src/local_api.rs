@@ -708,7 +708,8 @@ fn transcription_action(
         crate::transcription::models::ModelRuntime::Gguf(_) => {
             crate::transcription::models::is_verified(model)
         }
-        crate::transcription::models::ModelRuntime::AppleSpeech | crate::transcription::models::ModelRuntime::OpenAi => {
+        crate::transcription::models::ModelRuntime::AppleSpeech
+        | crate::transcription::models::ModelRuntime::OpenAi => {
             crate::transcription::models::is_installed(model, &selection.language)
         }
     };
@@ -1059,7 +1060,8 @@ fn model_infos(path: &str) -> std::result::Result<Vec<ModelInfo>, &'static str> 
         .map(|model| {
             let managed = matches!(
                 model.runtime,
-                crate::transcription::models::ModelRuntime::AppleSpeech | crate::transcription::models::ModelRuntime::OpenAi
+                crate::transcription::models::ModelRuntime::AppleSpeech
+                    | crate::transcription::models::ModelRuntime::OpenAi
             );
             let installed = crate::transcription::models::is_installed(model, &language);
             ModelInfo {
@@ -1132,7 +1134,8 @@ fn stream_model_prepare_with(
     let downloaded = Arc::new(AtomicU64::new(0));
     let initial_stage = if matches!(
         model.runtime,
-        crate::transcription::models::ModelRuntime::AppleSpeech | crate::transcription::models::ModelRuntime::OpenAi
+        crate::transcription::models::ModelRuntime::AppleSpeech
+            | crate::transcription::models::ModelRuntime::OpenAi
     ) {
         crate::transcription::models::ModelPreparationStage::Loading as u8
     } else {

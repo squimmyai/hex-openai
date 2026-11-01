@@ -60,8 +60,14 @@ pub(crate) fn device() -> TranscriptionDevice {
 
 pub fn install(selection: &TranscriptionSelection, canceled: &AtomicBool) -> Result<()> {
     let model = validate(selection)?;
-    if matches!(model.runtime, crate::transcription::models::ModelRuntime::OpenAi) {
-        println!("{} runs on OpenAI's servers; there is nothing to install.", model.name);
+    if matches!(
+        model.runtime,
+        crate::transcription::models::ModelRuntime::OpenAi
+    ) {
+        println!(
+            "{} runs on OpenAI's servers; there is nothing to install.",
+            model.name
+        );
         return Ok(());
     }
     let downloaded = AtomicU64::new(0);

@@ -245,6 +245,7 @@ pub(super) fn blurb(def: &ModelDefinition) -> &'static str {
         M::UnderdogBark3Clean => tr("English, with the ums and uhs taken out"),
         M::Nemotron35Asr => tr("Writes while you talk, in 27 languages"),
         M::AppleSpeech => tr("Apple's speech recognition, kept up to date by macOS"),
+        M::OpenAi => tr("Sends your speech to OpenAI, which writes it out"),
         M::Custom(_) => "",
     }
 }

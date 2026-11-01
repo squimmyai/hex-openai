@@ -360,7 +360,7 @@ impl ModelDefinition {
     pub const fn download_bytes(&self) -> Option<u64> {
         match self.runtime {
             ModelRuntime::Gguf(artifact) => Some(artifact.bytes),
-            ModelRuntime::AppleSpeech => None,
+            ModelRuntime::AppleSpeech | ModelRuntime::OpenAi => None,
         }
     }
 }

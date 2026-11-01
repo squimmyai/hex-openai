@@ -2019,7 +2019,8 @@ impl KeyboardModelChoice {
         }
         let model = crate::transcription::models::validate(&selection)?;
         match model.runtime {
-            crate::transcription::models::ModelRuntime::Gguf(_) | crate::transcription::models::ModelRuntime::OpenAi => Ok(()),
+            crate::transcription::models::ModelRuntime::Gguf(_)
+            | crate::transcription::models::ModelRuntime::OpenAi => Ok(()),
             crate::transcription::models::ModelRuntime::AppleSpeech => {
                 Err(eyre!("{} can't be switched to by input source", model.name))
             }

@@ -130,6 +130,8 @@ fn read_file_config() -> FileConfig {
 /// The OpenAI "model" the engine holds: a selection and nothing loaded.
 pub struct OpenAiTranscriber {
     selection: TranscriptionSelection,
+    /// What the Linux and Windows engine logs as the model's device.
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     device_label: String,
 }
 
@@ -139,10 +141,15 @@ impl OpenAiTranscriber {
         let config = Config::load();
         Ok(Self {
             selection: selection.clone(),
-            device_label: format!("OpenAI {} ({})", config.model, crate::net::host(&config.base_url)),
+            device_label: format!(
+                "OpenAI {} ({})",
+                config.model,
+                crate::net::host(&config.base_url)
+            ),
         })
     }
 
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     pub fn selection(&self) -> &TranscriptionSelection {
         &self.selection
     }
@@ -151,6 +158,7 @@ impl OpenAiTranscriber {
         &self.selection == selection
     }
 
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     pub fn device_label(&self) -> &str {
         &self.device_label
     }
@@ -437,7 +445,9 @@ mod tests {
     fn multipart_body_carries_fields_then_the_file() {
         let body = multipart_body("b", &[("model".into(), "gpt-transcribe".into())], b"WAV");
         let body = String::from_utf8(body).unwrap();
-        assert!(body.starts_with("--b\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-transcribe\r\n"));
+        assert!(body.starts_with(
+            "--b\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-transcribe\r\n"
+        ));
         assert!(body.contains("name=\"file\"; filename=\"dictation.wav\"\r\nContent-Type: audio/wav\r\n\r\nWAV\r\n--b--\r\n"));
     }
 
@@ -456,7 +466,9 @@ mod tests {
             api_key: None,
             ..config("gpt-transcribe")
         };
-        let error = request(&config, "en", &[0.5; 1600]).unwrap_err().to_string();
+        let error = request(&config, "en", &[0.5; 1600])
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("HEX_OPENAI_API_KEY"), "{error}");
     }
 }
