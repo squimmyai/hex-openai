@@ -19,8 +19,9 @@ For each value, the first source that is set wins:
 Each dictation reads them again, so a changed file or key applies to the
 next dictation without a restart.
 
-`openai.json` lives in Hex's data folder: `%APPDATA%\hex` on Windows,
-`~/Library/Application Support/hex` on macOS, `~/.local/share/hex` on Linux.
+`openai.json` lives in the data folder: `%APPDATA%\hex-openai` on Windows,
+`~/Library/Application Support/hex-openai` on macOS,
+`~/.local/share/hex-openai` on Linux.
 Settings writes it owner-only (mode 0600 on macOS and Linux; on Windows it
 inherits the per-user folder's ACL) and keeps any other values in it:
 
@@ -65,6 +66,28 @@ location /v1/audio/transcriptions {
 Requests go through `net`, so the computer's proxy settings (Windows'
 including PAC and WPAD, `HTTPS_PROXY`) and its trusted root certificates
 apply, as they do in a browser.
+
+## Name and identifiers
+
+The fork is **Hex OpenAI**, and installs beside the public Hex without
+sharing anything with it:
+
+| | Public Hex | Hex OpenAI |
+|---|---|---|
+| Data folder (and the Windows install) | `hex` | `hex-openai` (`app_paths::DATA_FOLDER`) |
+| Personal commands workspace | `~/.config/hex` | `~/.config/hex-openai` |
+| Window, menu bar, tray, Start menu, Apps & Features | Hex | Hex OpenAI (`app_paths::PRODUCT_NAME`) |
+| Windows installer `AppId` (and the updater's uninstall key) | `{6ED48C92-…}` | `{F6D1BBE2-D2DD-476E-8BE3-4553C6DAC958}` |
+| Windows launch-at-login value (`HKCU\…\Run`) | `Hex` | `Hex OpenAI` |
+| Windows installer file | `hex-setup-<version>-windows-x64.exe` | `hex-openai-setup-<version>-windows-x64.exe` |
+| macOS bundle ID (`scripts/build-app.sh`, `onboarding::MAC_BUNDLE_ID`) | `anomaly.hex` | `com.squimmyai.hex-openai` |
+| macOS app and URL scheme | `Hex.app`, `hex://` | `Hex OpenAI.app`, `hex-openai://` |
+
+Because the data folder is new, a computer that already runs the public Hex
+starts Hex OpenAI with default settings and no history; nothing is copied
+from `hex`. The UI copy still calls the app "Hex". The Linux app ID and
+desktop entry are unchanged (Linux only has to compile). The macOS updater
+still names `anomaly.hex`, but updates are off.
 
 ## What changed
 

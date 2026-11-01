@@ -12,6 +12,13 @@ pub fn is_local_build() -> bool {
     option_env!("HEX_LOCAL_BUILD") == Some("1")
 }
 
+/// The name this build installs and shows itself under, beside the public
+/// Hex: Apps & Features, the Start menu, the window, and the menu bar.
+pub const PRODUCT_NAME: &str = "Hex OpenAI";
+/// The data folder's name: settings, history, logs, `openai.json`, and on
+/// Windows the install itself. The public Hex uses `hex`.
+pub const DATA_FOLDER: &str = "hex-openai";
+
 /// Whether this is a macOS `Hex Test.app` build (`HEX_TEST_BUILD=1`), which
 /// keeps its data, settings, and user config apart from the installed Hex.
 pub fn is_macos_test_build() -> bool {
@@ -24,7 +31,7 @@ pub fn app_name() -> &'static str {
     if is_macos_test_build() {
         "Hex Test"
     } else {
-        "Hex"
+        PRODUCT_NAME
     }
 }
 
@@ -37,7 +44,7 @@ pub fn support_dir() -> Result<PathBuf> {
     let folder = if is_macos_test_build() {
         "hex-test"
     } else {
-        "hex"
+        DATA_FOLDER
     };
     Ok(data.join(folder))
 }
@@ -104,7 +111,7 @@ pub fn personal_commands_workspace() -> Result<PathBuf> {
     user_config_dir()
 }
 
-/// The per-user config folder holding `hex.config.ts` on every OS: `~/.config/hex`, or `~/.config/hex-test` for `Hex Test.app`.
+/// The per-user config folder holding `hex.config.ts` on every OS: `~/.config/hex-openai`, or `~/.config/hex-test` for `Hex Test.app`.
 fn user_config_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().ok_or_else(|| eyre!("home directory is unavailable"))?;
     Ok(user_config_dir_in(&home, is_macos_test_build()))
@@ -112,7 +119,7 @@ fn user_config_dir() -> Result<PathBuf> {
 
 fn user_config_dir_in(home: &std::path::Path, test_build: bool) -> PathBuf {
     home.join(".config")
-        .join(if test_build { "hex-test" } else { "hex" })
+        .join(if test_build { "hex-test" } else { DATA_FOLDER })
 }
 
 #[cfg(test)]
@@ -124,7 +131,7 @@ mod tests {
         let home = std::path::Path::new("/Users/kit");
         assert_eq!(
             user_config_dir_in(home, false),
-            home.join(".config").join("hex")
+            home.join(".config").join("hex-openai")
         );
         assert_eq!(
             user_config_dir_in(home, true),

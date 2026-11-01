@@ -24,7 +24,7 @@ plist_value() {
 
 [ -d "$bundle" ] || fail "$bundle does not exist"
 [ "$(basename "$bundle")" = "$expected_name" ] || fail "expected $expected_name, found $(basename "$bundle")"
-[ "$(plist_value CFBundleIdentifier)" = anomaly.hex ] || fail "wrong bundle identifier"
+[ "$(plist_value CFBundleIdentifier)" = com.squimmyai.hex-openai ] || fail "wrong bundle identifier"
 [ "$(plist_value CFBundleExecutable)" = hex ] || fail "wrong executable name"
 [ "$(plist_value CFBundleDisplayName)" = Hex ] || fail "wrong display name"
 [ "$(plist_value CFBundleName)" = Hex ] || fail "wrong bundle name"

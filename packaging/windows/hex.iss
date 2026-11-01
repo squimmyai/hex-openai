@@ -3,7 +3,7 @@
 ;
 ;   %APPDATA%\hex\versions\<version>\hex.exe
 ;   %APPDATA%\hex\current-version
-;   %APPDATA%\hex\install.json  (the direct-install receipt)
+;   %APPDATA%\hex-openai\install.json  (the direct-install receipt)
 ;   Start Menu\Programs\Hex.lnk  (description "Hex managed install")
 ;
 ; so the app keeps updating itself from the release service afterwards. The
@@ -38,32 +38,32 @@
 [Setup]
 ; Keep this AppId forever: it names the Apps & Features entry that
 ; src/windows_updater.rs keeps current after self-updates.
-AppId={{6ED48C92-5177-41F4-B8D6-37B7B02CFDF4}
-AppName=Hex
+AppId={{F6D1BBE2-D2DD-476E-8BE3-4553C6DAC958}
+AppName=Hex OpenAI
 AppVersion={#AppVersion}
-AppVerName=Hex {#AppVersion}
-AppPublisher=Anomaly Innovations, Inc.
-AppPublisherURL=https://anoma.ly/
-AppSupportURL=https://github.com/anomalyco/hex/issues
-AppUpdatesURL=https://github.com/anomalyco/hex/releases
+AppVerName=Hex OpenAI {#AppVersion}
+AppPublisher=Hex OpenAI
+AppPublisherURL=https://github.com/squimmyai/hex-openai
+AppSupportURL=https://github.com/squimmyai/hex-openai/issues
+AppUpdatesURL=https://github.com/squimmyai/hex-openai/releases
 PrivilegesRequired=lowest
 ArchitecturesAllowed={#AllowedArchitectures}
 ArchitecturesInstallIn64BitMode={#AllowedArchitectures}
-DefaultDirName={userappdata}\hex
+DefaultDirName={userappdata}\hex-openai
 DisableDirPage=yes
 UsePreviousAppDir=no
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
 DisableWelcomePage=yes
 UninstallFilesDir={app}\uninstall
-UninstallDisplayName=Hex
+UninstallDisplayName=Hex OpenAI
 UninstallDisplayIcon={app}\uninstall\hex.ico
 SetupIconFile=..\..\resources\windows\hex.ico
 WizardStyle=modern
 Compression=lzma2/max
 SolidCompression=yes
 OutputDir={#OutputDir}
-OutputBaseFilename=hex-setup-{#AppVersion}-windows-{#Arch}
+OutputBaseFilename=hex-openai-setup-{#AppVersion}-windows-{#Arch}
 CloseApplications=yes
 RestartApplications=no
 MinVersion=10.0
@@ -73,10 +73,10 @@ Source: "{#Executable}"; DestDir: "{app}\versions\{#AppVersion}"; DestName: "hex
 Source: "..\..\resources\windows\hex.ico"; DestDir: "{app}\uninstall"; Flags: ignoreversion
 
 [Icons]
-Name: "{userprograms}\Hex"; Filename: "{app}\versions\{#AppVersion}\hex.exe"; Parameters: "app"; WorkingDir: "{app}\versions\{#AppVersion}"; Comment: "Hex managed install"
+Name: "{userprograms}\Hex OpenAI"; Filename: "{app}\versions\{#AppVersion}\hex.exe"; Parameters: "app"; WorkingDir: "{app}\versions\{#AppVersion}"; Comment: "Hex OpenAI managed install"
 
 [Run]
-Filename: "{app}\versions\{#AppVersion}\hex.exe"; Parameters: "app"; Description: "Open Hex"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\versions\{#AppVersion}\hex.exe"; Parameters: "app"; Description: "Open Hex OpenAI"; Flags: postinstall nowait skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\versions"

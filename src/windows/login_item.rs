@@ -6,7 +6,8 @@ use winreg::RegKey;
 use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
 
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
-const VALUE_NAME: &str = "Hex";
+/// Its own value beside the public Hex's `Hex`.
+const VALUE_NAME: &str = crate::app_paths::PRODUCT_NAME;
 
 /// Return the Windows-owned startup registration state.
 pub fn is_enabled() -> Result<bool> {

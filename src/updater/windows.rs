@@ -1,5 +1,5 @@
 //! Windows installs: the per-user version layout our installers receipt
-//! (`%APPDATA%\hex\install.json`) updates itself by staging the
+//! (`%APPDATA%\hex-openai\install.json`) updates itself by staging the
 //! new `hex.exe` into its own version directory and switching the
 //! `current-version` pointer. Before anything runs, the download must carry
 //! a valid Authenticode signature from Anomaly's Artifact Signing identity.
@@ -32,7 +32,7 @@ pub const AUTHENTICODE_SIGNER: &str = "Anomaly Innovations, Inc https://anoma.ly
 /// `HKLM` (or `HKCU`) `\SOFTWARE\Policies\Anomaly\Hex`, value `DisableUpdates`.
 const POLICY_KEY: &str = r"SOFTWARE\Policies\Anomaly\Hex";
 /// The Apps & Features entry that packaging/windows/hex.iss registers.
-const UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{6ED48C92-5177-41F4-B8D6-37B7B02CFDF4}_is1";
+const UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{F6D1BBE2-D2DD-476E-8BE3-4553C6DAC958}_is1";
 
 /// The activated `hex.exe`.
 #[derive(Clone, Debug)]
@@ -143,7 +143,7 @@ fn repoint_start_menu_shortcut(executable: &Path) -> Result<()> {
     let Some(appdata) = dirs::config_dir() else {
         return Ok(());
     };
-    let shortcut = appdata.join(r"Microsoft\Windows\Start Menu\Programs\Hex.lnk");
+    let shortcut = appdata.join(r"Microsoft\Windows\Start Menu\Programs\Hex OpenAI.lnk");
     if !shortcut.exists() {
         return Ok(());
     }
@@ -154,7 +154,7 @@ fn repoint_start_menu_shortcut(executable: &Path) -> Result<()> {
             "Hidden",
             "-Command",
             "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:HEX_SHORTCUT); \
-             if ($s.Description -eq 'Hex managed install') { \
+             if ($s.Description -eq 'Hex OpenAI managed install') { \
              $s.TargetPath = $env:HEX_EXECUTABLE; \
              $s.WorkingDirectory = (Split-Path -Parent $env:HEX_EXECUTABLE); \
              $s.Save() }",
