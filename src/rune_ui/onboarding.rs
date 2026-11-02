@@ -243,6 +243,62 @@ pub(super) fn fixture(ui: &mut Ui, step: Step, downloading: bool) {
     }
 }
 
+/// This build's first run: OpenAI, which downloads nothing, is ready from
+/// the start, so the first run opens on the demo.
+pub(super) fn openai_fixture(ui: &mut Ui) {
+    *ui = super::portal_fixture();
+    ui.settings.transcription = Default::default();
+    ui.picker.installed = Some(vec![ui.settings.transcription.model]);
+    let status = ui.platform.setup_status(true);
+    ui.tour = Some(Tour::new(
+        Flow::new(
+            Step::Welcome,
+            status,
+            ui.platform.caps.permissions,
+            ui.platform.caps.practice_dictation,
+        ),
+        false,
+    ));
+    poll(ui);
+    super::onboarding_kit::live::fixture(ui, super::onboarding_kit::live::Page::Demo);
+}
+
+/// The tour state a Linux first-run scene starts from.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum FirstRun {
+    /// Nothing installed; the recommended model just started downloading.
+    Fresh,
+    /// The download is a third of the way.
+    Downloading,
+    /// The download stopped.
+    Failed,
+    /// The model is installed.
+    Ready,
+}
+
+pub(super) fn first_run(ui: &mut Ui, state: FirstRun, page: super::onboarding_kit::live::Page) {
+    *ui = super::portal_fixture();
+    fixture(ui, crate::desktop::onboarding::Step::Setup, true);
+    match state {
+        FirstRun::Fresh => set_downloaded(ui, 8),
+        FirstRun::Downloading => set_downloaded(ui, 31),
+        FirstRun::Failed => {
+            if let Some(view) = &mut ui.view {
+                view.transcription.preparing = None;
+                view.transcription.error = Some("The connection was reset.".into());
+            }
+        }
+        FirstRun::Ready => {
+            ui.picker.installed = Some(vec![ui.settings.transcription.model]);
+            if let Some(view) = &mut ui.view {
+                view.transcription.preparing = None;
+            }
+        }
+    }
+    poll(ui);
+    super::onboarding_kit::live::fixture(ui, page);
+}
+
 pub(super) fn set_downloaded(ui: &mut Ui, percent: u64) {
     if let Some(view) = &mut ui.view {
         let model = ui.settings.transcription.model;

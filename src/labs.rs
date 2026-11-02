@@ -139,7 +139,22 @@ impl Feature {
     /// Whether this build has the feature: its audience reaches a dev or
     /// stable build.
     pub fn shipped(self) -> bool {
-        self.audience().reaches(crate::dev_build::is_dev_build())
+        self.audience().reaches(crate::dev_build::is_dev_build()) && !self.needs_local_model()
+    }
+
+    /// Whether it acts only on an on-device model, which a build that runs
+    /// only OpenAI never loads: such a feature has no row and no effect.
+    pub const fn needs_local_model(self) -> bool {
+        crate::transcription::openai::ONLY
+            && matches!(
+                self,
+                Self::LiveText
+                    | Self::VocabularyBiasing
+                    | Self::UnloadIdle
+                    | Self::ParakeetUltra
+                    | Self::BenchmarkDetails
+                    | Self::PickerSortFilter
+            )
     }
 
     /// Who the feature is for. Every feature picks one.
@@ -928,6 +943,35 @@ mod tests {
     }
 
     #[test]
+    fn local_model_features_have_no_row_and_stay_off() {
+        let hidden = [
+            Feature::LiveText,
+            Feature::VocabularyBiasing,
+            Feature::UnloadIdle,
+            Feature::ParakeetUltra,
+            Feature::BenchmarkDetails,
+            Feature::PickerSortFilter,
+        ];
+        for feature in hidden {
+            assert!(feature.needs_local_model(), "{}", feature.name());
+            assert!(Feature::available().all(|shown| shown != feature));
+        }
+        let labs = LabsSettings {
+            live_text: true,
+            vocabulary_biasing: true,
+            unload_idle: true,
+            parakeet_ultra: true,
+            ..LabsSettings::default()
+        };
+        let state = encode(&labs);
+        for bit in [LIVE_TEXT, VOCABULARY_BIASING, UNLOAD_IDLE, PARAKEET_ULTRA] {
+            assert_eq!(state & bit, 0);
+        }
+        assert!(Feature::available().any(|shown| shown == Feature::SpokenFormatting));
+    }
+
+    #[test]
+    #[ignore = "openai-only: Unload when idle never turns on"]
     fn unload_idle_carries_its_minutes() {
         let mut labs = LabsSettings::default();
         assert_eq!(labs.unload_idle_minutes, 15);

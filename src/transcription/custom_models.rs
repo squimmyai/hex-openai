@@ -406,6 +406,10 @@ pub fn usable(id: CustomModelId) -> bool {
 
 /// Every import and found file in use, ready or not, by name.
 pub fn imported() -> Vec<Imported> {
+    // Imports are on-device models, which an OpenAI-only build never runs.
+    if super::openai::ONLY {
+        return Vec::new();
+    }
     registry()
         .entries
         .iter()
@@ -413,7 +417,7 @@ pub fn imported() -> Vec<Imported> {
             definition: entry.definition,
             architecture: match entry.definition.runtime {
                 ModelRuntime::Gguf(artifact) => artifact.architecture,
-                ModelRuntime::AppleSpeech => "",
+                ModelRuntime::AppleSpeech | ModelRuntime::OpenAi => "",
             },
             sha256: entry.manifest.sha256.clone(),
             source: entry.manifest.source.clone(),

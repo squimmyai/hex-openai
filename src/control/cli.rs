@@ -543,6 +543,15 @@ pub fn run(command: ControlCli) -> u8 {
 /// `hex model install`: the running Hex downloads in the background;
 /// without one, Linux and Windows download here.
 fn install_model(model: Option<String>, language: Option<String>, output: Output) -> u8 {
+    if crate::transcription::openai::ONLY {
+        return match model.as_deref() {
+            None | Some("openai") => {
+                println!("OpenAI runs on OpenAI's servers: there is nothing to install.");
+                0
+            }
+            Some(_) => fail(OPENAI_ONLY_MODELS),
+        };
+    }
     let model = match model {
         Some(model) => model,
         None => match crate::app_settings::AppSettings::read() {
@@ -562,10 +571,19 @@ fn install_model(model: Option<String>, language: Option<String>, output: Output
     send(ControlCommand::ModelInstall { model, language }, output)
 }
 
+/// What `hex model install` and `import` say in a build that transcribes
+/// only through OpenAI.
+const OPENAI_ONLY_MODELS: &str = "this build transcribes only through OpenAI, so there is no \
+     speech model to download or import. Set the API key in Settings › General › Advanced, or \
+     with HEX_OPENAI_API_KEY.";
+
 /// `hex model import`: checks, copies, and records the file here, in this
 /// process; a running Hex lists it at once.
 fn import_model(path: &std::path::Path, name: Option<&str>) -> color_eyre::Result<()> {
     use crate::transcription::custom_models;
+    if crate::transcription::openai::ONLY {
+        color_eyre::eyre::bail!(OPENAI_ONLY_MODELS);
+    }
     let id = custom_models::import(path, name, &std::sync::atomic::AtomicBool::new(false))?;
     let definition = custom_models::definition(id);
     println!("imported\t{}\t{}", id.as_str(), definition.name);

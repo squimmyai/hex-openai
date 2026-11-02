@@ -2325,6 +2325,9 @@ fn goldens() {
             "modes",
             "modes-picker",
             "picker-downloading",
+            "openai-key",
+            "openai-key-saved",
+            "openai-key-proxy",
         ] {
             check_golden(scene, dark, PANE_SIZE);
         }

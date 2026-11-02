@@ -642,9 +642,14 @@ pub fn default_mac_bundle_id(test_build: Option<&str>) -> &'static str {
     if test_build == Some("1") {
         "anomaly.hex.test"
     } else {
-        "anomaly.hex"
+        MAC_BUNDLE_ID
     }
 }
+
+/// This build's bundle identifier, apart from the public Hex's `anomaly.hex`
+/// so macOS keeps their permissions and login items apart.
+/// `scripts/build-app.sh` writes the same one.
+pub const MAC_BUNDLE_ID: &str = "com.squimmyai.hex-openai";
 
 /// How long after returning from System Settings an asked permission must stay
 /// untrusted before Hex offers `"Still grey? Fix it"`.
@@ -2024,8 +2029,8 @@ mod tests {
                 "com.kitlangton.Hex.debug"
             ]
         );
-        assert_eq!(default_mac_bundle_id(None), "anomaly.hex");
-        assert_eq!(default_mac_bundle_id(Some("0")), "anomaly.hex");
+        assert_eq!(default_mac_bundle_id(None), "com.squimmyai.hex-openai");
+        assert_eq!(default_mac_bundle_id(Some("0")), "com.squimmyai.hex-openai");
         assert_eq!(default_mac_bundle_id(Some("1")), "anomaly.hex.test");
 
         assert_eq!(

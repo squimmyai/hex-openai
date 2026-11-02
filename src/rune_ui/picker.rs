@@ -821,6 +821,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: Labs › Benchmark details is hidden"]
     fn benchmark_details_are_off_by_default() {
         let ui = Ui::with(
             AppSettings::default(),
@@ -834,6 +835,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "openai-only: Labs › Picker sort and filter is hidden"]
     fn browsing_never_saves_or_asks_for_a_model() {
         let mut settings = AppSettings::default();
         settings.labs.picker_sort_filter = true;

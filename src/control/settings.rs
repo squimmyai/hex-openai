@@ -1367,7 +1367,7 @@ mod tests {
         let change = apply(
             &settings,
             "keyboard_model_switching.mappings",
-            r#"{"com.apple.keylayout.Spanish":{"model":"parakeet_v3","language":"es"}}"#,
+            r#"{"com.apple.keylayout.Spanish":{"model":"openai","language":"es"}}"#,
             &rules(),
         )
         .unwrap();
@@ -1378,7 +1378,7 @@ mod tests {
                 .mappings
                 .get("com.apple.keylayout.Spanish"),
             Some(&crate::app_settings::KeyboardModelChoice {
-                model: crate::transcription::models::TranscriptionModelId::ParakeetV3,
+                model: crate::transcription::models::TranscriptionModelId::OpenAi,
                 language: "es".into(),
             })
         );
@@ -1387,6 +1387,9 @@ mod tests {
             r#"{"Spanish":{"model":"unknown-model","language":"es"}}"#,
             r#"{"Japanese":{"model":"parakeet_unified_en","language":"ja"}}"#,
             r#"{"ABC":{"model":"apple_speech","language":"en"}}"#,
+            // Only OpenAI runs here, and it takes no Cantonese code.
+            r#"{"Spanish":{"model":"parakeet_v3","language":"es"}}"#,
+            r#"{"Cantonese":{"model":"openai","language":"yue"}}"#,
         ] {
             assert!(
                 apply(
@@ -1691,7 +1694,7 @@ mod tests {
             &values(
                 r#"{"double_tap_only": true, "double_tap_lock": true,
                     "dictation_hotkey": "option+space", "sound_effect_volume": 0.4,
-                    "microphone": null, "transcription.model": "parakeet_v3",
+                    "microphone": null, "transcription.model": "openai",
                     "transcription.language": "de"}"#,
             ),
             &rules(),
@@ -1703,7 +1706,7 @@ mod tests {
             "option+space"
         );
         assert_eq!(change.settings.sound_effect_volume, 0.4);
-        assert_eq!(change.settings.transcription.model.as_str(), "parakeet_v3");
+        assert_eq!(change.settings.transcription.model.as_str(), "openai");
         assert_eq!(change.settings.transcription.language, "de");
 
         for refused in [

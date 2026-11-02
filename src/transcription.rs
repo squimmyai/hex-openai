@@ -22,6 +22,7 @@ pub(crate) mod local_transcriber;
 pub(crate) mod model_benchmarks;
 pub(crate) mod model_details;
 pub(crate) mod models;
+pub(crate) mod openai;
 pub(crate) mod pause_segmenter;
 #[cfg(any(target_os = "macos", target_os = "windows", test))]
 pub(crate) mod preparation;
@@ -54,6 +55,7 @@ pub(crate) const UNIFIED_ENGLISH_TRAILING_SILENCE_SAMPLES: usize = 6_400;
 pub enum Transcriber {
     Gguf(Box<Parakeet>),
     AppleSpeech(AppleSpeech),
+    OpenAi(openai::OpenAiTranscriber),
 }
 
 #[cfg(target_os = "macos")]
@@ -75,6 +77,7 @@ impl Transcriber {
                 .map(Box::new)
                 .map(Self::Gguf),
             ModelRuntime::AppleSpeech => AppleSpeech::load(selection).map(Self::AppleSpeech),
+            ModelRuntime::OpenAi => openai::OpenAiTranscriber::load(selection).map(Self::OpenAi),
         }
     }
 
@@ -82,6 +85,7 @@ impl Transcriber {
         match self {
             Self::Gguf(model) => model.matches_selection(selection),
             Self::AppleSpeech(model) => model.matches_selection(selection),
+            Self::OpenAi(model) => model.matches_selection(selection),
         }
     }
 
@@ -90,7 +94,7 @@ impl Transcriber {
     pub fn prewarm(&mut self) -> Result<()> {
         match self {
             Self::Gguf(model) => model.prewarm(),
-            Self::AppleSpeech(_) => Ok(()),
+            Self::AppleSpeech(_) | Self::OpenAi(_) => Ok(()),
         }
     }
 
@@ -103,6 +107,7 @@ impl Transcriber {
                 model.transcribe(&samples)
             }
             Self::AppleSpeech(model) => model.transcribe(&samples).map(|result| result.text),
+            Self::OpenAi(model) => model.transcribe(&samples),
         }
     }
 
@@ -137,6 +142,7 @@ impl Transcriber {
                     })
             }
             Self::AppleSpeech(model) => model.transcribe(&samples),
+            Self::OpenAi(model) => model.transcribe_segments(&samples),
         }
     }
 }

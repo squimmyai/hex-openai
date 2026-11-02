@@ -111,6 +111,10 @@ pub fn last() -> Vec<Found> {
 /// Scans the hub cache now: headers only, and only files that changed since
 /// they were last read. Exact catalog matches come first.
 pub fn scan() -> Vec<Found> {
+    // Nothing found could run where only OpenAI transcribes.
+    if super::openai::ONLY {
+        return Vec::new();
+    }
     let mut found = hub_dir().map(|hub| scan_in(&hub)).unwrap_or_default();
     for model in &mut found {
         model.too_big = likely_too_big(model.tensor_bytes);
@@ -310,7 +314,7 @@ fn catalog_found(
     let definition = super::models::definition(model);
     let (architecture, variant) = match definition.runtime {
         ModelRuntime::Gguf(artifact) => (artifact.architecture, artifact.variant),
-        ModelRuntime::AppleSpeech => ("", ""),
+        ModelRuntime::AppleSpeech | ModelRuntime::OpenAi => ("", ""),
     };
     Found {
         path: path.to_path_buf(),
@@ -686,7 +690,7 @@ mod tests {
             .filter(|model| !model.id.is_custom())
             .filter_map(|model| match model.runtime {
                 ModelRuntime::Gguf(artifact) => Some((model, artifact)),
-                ModelRuntime::AppleSpeech => None,
+                ModelRuntime::AppleSpeech | ModelRuntime::OpenAi => None,
             })
             .min_by_key(|(_, artifact)| artifact.bytes)
             .unwrap();

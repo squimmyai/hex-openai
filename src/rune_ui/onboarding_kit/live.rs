@@ -133,26 +133,43 @@ fn clock(ui: &Ui) -> f64 {
 }
 
 fn english(selection: &TranscriptionSelection) -> bool {
+    if crate::transcription::openai::ONLY {
+        return selection.language == "en";
+    }
     selection.model == TranscriptionModelId::ParakeetUnifiedEnglish
+}
+
+/// The models the language capsule switches between: English's and the
+/// other languages'. OpenAI is both where it is the only model.
+fn capsule_models() -> (TranscriptionModelId, TranscriptionModelId) {
+    if crate::transcription::openai::ONLY {
+        (TranscriptionModelId::OpenAi, TranscriptionModelId::OpenAi)
+    } else {
+        (
+            TranscriptionModelId::ParakeetUnifiedEnglish,
+            TranscriptionModelId::ParakeetV3,
+        )
+    }
 }
 
 /// The selection the language capsule switches to.
 fn other_selection(current: &TranscriptionSelection) -> TranscriptionSelection {
+    let (english_model, other_model) = capsule_models();
     if english(current) {
-        let v3 = transcription_models::definition(TranscriptionModelId::ParakeetV3);
+        let other = transcription_models::definition(other_model);
         let preferred = crate::desktop::i18n::preferred_language();
-        let language = if preferred != "en" && v3.supports_language(&preferred) {
+        let language = if preferred != "en" && other.supports_language(&preferred) {
             preferred
         } else {
             "fr".to_owned()
         };
         TranscriptionSelection {
-            model: TranscriptionModelId::ParakeetV3,
+            model: other_model,
             language,
         }
     } else {
         TranscriptionSelection {
-            model: TranscriptionModelId::ParakeetUnifiedEnglish,
+            model: english_model,
             language: "en".into(),
         }
     }

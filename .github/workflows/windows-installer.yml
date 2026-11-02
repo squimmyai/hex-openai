@@ -1,6 +1,6 @@
 name: Windows installer
 
-# Builds and silently tests hex-setup-<version>-windows-<x64|arm64>.exe
+# Builds and silently tests hex-openai-setup-<version>-windows-<x64|arm64>.exe
 # around the executables of the stable release on anoma.ly/release, so
 # installer changes are tested on real Windows runners without a full
 # release. Before the first stable release on the service there is nothing to
@@ -90,7 +90,7 @@ jobs:
           scripts/build-windows-installer.ps1 -Executable $exe -Version $env:HEX_VERSION -Arch ${{ matrix.arch }} -OutDir installers
       - name: Install, reinstall, install over another version, and uninstall silently
         shell: pwsh
-        run: scripts/test-windows-installer.ps1 -Installer "installers/hex-setup-$env:HEX_VERSION-windows-${{ matrix.label }}.exe" -Executable $env:HEX_EXE -Version $env:HEX_VERSION
+        run: scripts/test-windows-installer.ps1 -Installer "installers/hex-openai-setup-$env:HEX_VERSION-windows-${{ matrix.label }}.exe" -Executable $env:HEX_EXE -Version $env:HEX_VERSION
       - name: Upload installer logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -100,6 +100,6 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: hex-setup-${{ matrix.label }}
+          name: hex-openai-setup-${{ matrix.label }}
           path: installers/
           if-no-files-found: error
